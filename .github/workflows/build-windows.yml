@@ -30,7 +30,19 @@ jobs:
         run: pip list
 
       - name: Build with PyInstaller
-        run: pyinstaller uv_dashboard2_win.spec --noconfirm 2>&1 | tee build_output.log
+        id: build
+        run: |
+          pyinstaller uv_dashboard2_win.spec --noconfirm 2>&1 | tee build_output.log
+          echo "done"
+
+      - name: Show error details on failure
+        if: failure()
+        run: |
+          echo "=== BUILD FAILED — Last 100 lines of output ==="
+          if (Test-Path build_output.log) {
+            Get-Content build_output.log -Tail 100
+          }
+          echo "=== END ==="
 
       - name: Upload build log on failure
         if: failure()
