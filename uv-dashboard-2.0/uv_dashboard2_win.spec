@@ -17,20 +17,23 @@ block_cipher = None
 # Windows 上用 __file__ 定位，不硬编码路径
 PROJECT_DIR = os.path.dirname(os.path.abspath(SPEC))
 
+# 动态构建 datas 列表（容错：db 文件可能不存在，如 CI 构建时）
+_datas = [
+    (os.path.join(PROJECT_DIR, 'templates'), 'templates'),
+    (os.path.join(PROJECT_DIR, 'static', 'css'), 'static/css'),
+    (os.path.join(PROJECT_DIR, 'static', 'js'), 'static/js'),
+]
+_db_path = os.path.join(PROJECT_DIR, 'uv_dashboard.db')
+if os.path.exists(_db_path):
+    _datas.append((_db_path, '.'))
+else:
+    print(f'[WARN] uv_dashboard.db not found at {_db_path} — app will create empty DB on first run')
+
 a = Analysis(
     [os.path.join(PROJECT_DIR, 'app.py')],
     pathex=[PROJECT_DIR],
     binaries=[],
-    datas=[
-        # 模板文件
-        (os.path.join(PROJECT_DIR, 'templates'), 'templates'),
-        # 静态资源 — CSS
-        (os.path.join(PROJECT_DIR, 'static', 'css'), 'static/css'),
-        # 静态资源 — JS
-        (os.path.join(PROJECT_DIR, 'static', 'js'), 'static/js'),
-        # 内置数据库（首次启动拷贝到 %APPDATA%\UV Dashboard 2.0\）
-        (os.path.join(PROJECT_DIR, 'uv_dashboard.db'), '.'),
-    ],
+    datas=_datas,
     hiddenimports=[
         'flask',
         'werkzeug',
