@@ -26,10 +26,18 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: List installed packages
+        run: pip list
+
       - name: Build with PyInstaller
-        run: pyinstaller uv_dashboard2_win.spec --noconfirm
+        run: pyinstaller uv_dashboard2_win.spec --noconfirm --log-level WARN
+
+      - name: List dist contents
+        if: always()
+        run: dir "dist\UV Dashboard 2.0" 2>nul || echo "dist not found"
 
       - name: Upload artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: UV-Dashboard-2.0-Windows
@@ -37,9 +45,11 @@ jobs:
           retention-days: 30
 
       - name: Create ZIP archive
+        if: success()
         run: Compress-Archive -Path "dist\UV Dashboard 2.0\*" -DestinationPath "UV-Dashboard-2.0-Windows.zip"
 
       - name: Upload ZIP
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: UV-Dashboard-2.0-Windows-ZIP

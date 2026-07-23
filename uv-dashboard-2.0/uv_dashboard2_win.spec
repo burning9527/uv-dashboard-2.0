@@ -63,6 +63,7 @@ a = Analysis(
         'dateutil.relativedelta',
         'PIL',
         'xlsxwriter',
+        'numpy',
         # ── pywebview Windows backend ──
         'webview',
         'webview.platforms.winforms',
@@ -76,9 +77,6 @@ a = Analysis(
         'webview.http',
         'webview.screen',
         'proxy_tools',
-        # Windows 特定
-        'clr_loader',
-        'pythonnet',
     ],
     hookspath=[],
     hooksconfig={},
