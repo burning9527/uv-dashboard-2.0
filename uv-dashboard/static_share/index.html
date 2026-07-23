@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>广州26暑新初一 · UV数据看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #0F1119;
+  color: #E0E3EB;
+  min-height: 100vh;
+  padding: 32px 24px;
+}
+.container { max-width: 960px; margin: 0 auto; }
+h1 {
+  font-size: 22px; font-weight: 700; color: #fff;
+  margin-bottom: 6px; letter-spacing: 0.5px;
+}
+.subtitle { font-size: 13px; color: #6C7293; margin-bottom: 28px; }
+
+/* KPI Cards */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-bottom: 28px;
+}
+.kpi-card {
+  background: #161923; border-radius: 10px; padding: 18px 20px;
+  border: 1px solid #1E2233;
+}
+.kpi-label { font-size: 12px; color: #6C7293; margin-bottom: 6px; }
+.kpi-value { font-size: 28px; font-weight: 700; color: #fff; }
+.kpi-sub  { font-size: 12px; color: #4CAF50; margin-top: 4px; }
+.kpi-card.red .kpi-value { color: #E8505B; }
+.kpi-card.green .kpi-value { color: #1D9E75; }
+.kpi-card.blue .kpi-value { color: #378ADD; }
+
+/* Period Tabs */
+.tabs {
+  display: flex; gap: 6px; margin-bottom: 22px;
+  background: #161923; border-radius: 8px; padding: 4px;
+  border: 1px solid #1E2233; width: fit-content;
+}
+.tab {
+  padding: 7px 18px; font-size: 13px; color: #6C7293;
+  border-radius: 6px; cursor: pointer; border: none; background: none;
+  transition: all 0.2s;
+}
+.tab.active { background: #378ADD; color: #fff; font-weight: 600; }
+.tab:hover:not(.active) { color: #A0A7BE; }
+
+/* Chart */
+.chart-card {
+  background: #161923; border-radius: 10px;
+  padding: 22px; border: 1px solid #1E2233; margin-bottom: 24px;
+}
+.chart-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 14px; }
+.chart-wrap { position: relative; height: 320px; }
+.chart-wrap canvas { width: 100% !important; }
+
+/* Legend */
+.legend-row { display: flex; gap: 22px; margin-bottom: 8px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8E94A8; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* Table */
+.table-card {
+  background: #161923; border-radius: 10px;
+  padding: 22px; border: 1px solid #1E2233; margin-bottom: 24px;
+}
+.table-card h3 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 14px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; color:#6C7293; font-weight:500; padding:8px 12px; border-bottom:1px solid #1E2233; }
+td { padding:10px 12px; border-bottom:1px solid #1A1D2A; color:#C8CDDB; }
+tr:last-child td { border-bottom:none; }
+td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.rate-bar-bg { display:inline-block; width:100px; height:6px; background:#1E2233; border-radius:3px; vertical-align:middle; margin-right:8px; }
+.rate-bar-fg { height:6px; background:#378ADD; border-radius:3px; }
+td.green { color:#1D9E75; font-weight:600; }
+td.amber { color:#F59E0B; font-weight:600; }
+
+/* Footer */
+.footer { text-align:center; color:#6C7293; font-size:11px; padding:16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>广州26暑新初一 · UV数据看板</h1>
+  <p class="subtitle">数据更新时间：2026-07-06 · 雪球素养</p>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="chart-card">
+    <div class="chart-title">业务趋势 · 在读/退费/续费堆叠 + 续报率</div>
+    <div class="legend-row">
+      <div class="legend-item"><span class="legend-dot" style="background:#E8505B"></span>退费 PV</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#378ADD"></span>在读 PV</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#1D9E75"></span>续费 PV</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#F59E0B;border-radius:50%;width:8px;height:8px"></span>续报率 %</div>
+    </div>
+    <div class="tabs" id="periodTabs">
+      <button class="tab active" data-period="all">全部</button>
+      <button class="tab" data-period="零期">零期</button>
+      <button class="tab" data-period="一期">一期</button>
+      <button class="tab" data-period="二期">二期</button>
+      <button class="tab" data-period="三期">三期</button>
+    </div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  </div>
+
+  <div class="table-card">
+    <h3>顾问续报排行（按在读UV降序）</h3>
+    <table><thead><tr><th>顾问</th><th class="num">在读UV</th><th class="num">应续UV</th><th class="num">开课前续</th><th class="num">当期转化</th><th>续报率</th></tr></thead>
+    <tbody id="advisorBody"></tbody></table>
+  </div>
+
+  <div class="footer">雪球素养 · 广州26暑新初一 · UV数据看板</div>
+</div>
+
+<script>
+// ── Embedded Data ──
+const TREND_DATA = {
+  all: [
+    {date:"06-30",active:1055,refund:80,renew:86},
+    {date:"07-01",active:1066,refund:81,renew:86},
+    {date:"07-02",active:1069,refund:81,renew:89},
+    {date:"07-03",active:1075,refund:81,renew:89},
+    {date:"07-04",active:1096,refund:81,renew:99},
+    {date:"07-05",active:1099,refund:81,renew:112},
+    {date:"07-06",active:1099,refund:81,renew:112}
+  ],
+  "零期": [
+    {date:"06-30",active:299,refund:36,renew:42},
+    {date:"07-01",active:302,refund:37,renew:42},
+    {date:"07-02",active:301,refund:37,renew:45},
+    {date:"07-03",active:299,refund:37,renew:45},
+    {date:"07-04",active:299,refund:37,renew:55},
+    {date:"07-05",active:299,refund:37,renew:68},
+    {date:"07-06",active:299,refund:37,renew:68}
+  ],
+  "一期": [
+    {date:"06-30",active:288,refund:28,renew:26},
+    {date:"07-01",active:288,refund:28,renew:26},
+    {date:"07-02",active:291,refund:28,renew:26},
+    {date:"07-03",active:296,refund:28,renew:26},
+    {date:"07-04",active:309,refund:28,renew:26},
+    {date:"07-05",active:308,refund:28,renew:26},
+    {date:"07-06",active:308,refund:28,renew:26}
+  ],
+  "二期": [
+    {date:"06-30",active:229,refund:7,renew:18},
+    {date:"07-01",active:234,refund:7,renew:18},
+    {date:"07-02",active:234,refund:7,renew:18},
+    {date:"07-03",active:235,refund:7,renew:18},
+    {date:"07-04",active:238,refund:7,renew:18},
+    {date:"07-05",active:244,refund:7,renew:18},
+    {date:"07-06",active:244,refund:7,renew:18}
+  ],
+  "三期": [
+    {date:"06-30",active:239,refund:9,renew:0},
+    {date:"07-01",active:242,refund:9,renew:0},
+    {date:"07-02",active:243,refund:9,renew:0},
+    {date:"07-03",active:245,refund:9,renew:0},
+    {date:"07-04",active:250,refund:9,renew:0},
+    {date:"07-05",active:248,refund:9,renew:0},
+    {date:"07-06",active:248,refund:9,renew:0}
+  ]
+};
+
+const ADVISORS = [
+  {name:"戎凯01",active:43,should:37,pre:6,new:6},
+  {name:"王丽",active:56,should:47,pre:9,new:3},
+  {name:"林志豪01",active:61,should:53,pre:8,new:2},
+  {name:"王达04",active:22,should:20,pre:2,new:2},
+  {name:"杨林33",active:51,should:46,pre:5,new:1},
+  {name:"其他顾问合计",active:172,should:159,pre:23,new:1}
+];
+
+let mainChart = null;
+let currentPeriod = 'all';
+
+// ── Utils ──
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// ── KPI Cards ──
+function renderKPIs(data) {
+  const last = data[data.length-1];
+  const preLast = data[data.length-2] || last;
+  const rate = last.active > 0 ? (last.renew / last.active * 100).toFixed(1) : '0.0';
+  const ratePrev = preLast.active > 0 ? (preLast.renew / preLast.active * 100).toFixed(1) : '0.0';
+  const rateDiff = (parseFloat(rate) - parseFloat(ratePrev)).toFixed(1);
+  const activeDiff = last.active - preLast.active;
+
+  const cards = [
+    { label:'在读 PV', value:last.active, cls:'blue', sub: activeDiff >= 0 ? `+${activeDiff}` : `${activeDiff}` },
+    { label:'退费 PV', value:last.refund, cls:'red', sub:`累计退费` },
+    { label:'续费 PV', value:last.renew, cls:'green', sub:`续报率 ${rate}%` },
+    { label:'续报率', value:`${rate}%`, cls:'', sub: rateDiff >= 0 ? `↑ ${rateDiff}pp` : `↓ ${Math.abs(rateDiff)}pp` }
+  ];
+
+  document.getElementById('kpiGrid').innerHTML = cards.map(c =>
+    `<div class="kpi-card ${c.cls}">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.value}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`
+  ).join('');
+}
+
+// ── Chart ──
+function renderChart(data) {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  const labels = data.map(d => d.date);
+  const activeData  = data.map(d => d.active);
+  const refundData  = data.map(d => d.refund);
+  const renewData   = data.map(d => d.renew);
+  const rateData    = data.map(d => d.active > 0 ? parseFloat((d.renew / d.active * 100).toFixed(1)) : 0);
+
+  // Destroy previous
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+
+  mainChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '退费 PV', data: refundData,
+          backgroundColor: 'rgba(232,80,91,0.75)', borderColor: '#E8505B', borderWidth: 0,
+          order: 2, stack: 'stack1', maxBarThickness: 48
+        },
+        {
+          label: '在读 PV', data: activeData,
+          backgroundColor: 'rgba(55,138,221,0.75)', borderColor: '#378ADD', borderWidth: 0,
+          order: 2, stack: 'stack1', maxBarThickness: 48
+        },
+        {
+          label: '续费 PV', data: renewData,
+          backgroundColor: 'rgba(29,158,117,0.78)', borderColor: '#1D9E75', borderWidth: 0,
+          borderRadius: { topLeft: 4, topRight: 4 },
+          order: 2, stack: 'stack1', maxBarThickness: 48
+        },
+        {
+          label: '续报率 %', data: rateData,
+          type: 'line',
+          borderColor: '#F59E0B', backgroundColor: 'transparent',
+          tension: 0.35, pointRadius: 4, pointHoverRadius: 6,
+          pointBackgroundColor: '#F59E0B', borderWidth: 2.5,
+          order: 1, yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: '#6C7293', font: { size: 11 } },
+          grid: { color: '#1E2233' }
+        },
+        y: {
+          stacked: true,
+          position: 'left',
+          ticks: { color: '#6C7293', font: { size: 11 }, callback: v => v >= 1000 ? (v/1000)+'k' : v },
+          grid: { color: '#1E2233' },
+          border: { color: '#1E2233' }
+        },
+        y1: {
+          position: 'right',
+          ticks: { color: '#F59E0B', font: { size: 11 }, callback: v => v + '%' },
+          grid: { drawOnChartArea: false },
+          border: { color: '#1E2233' },
+          min: 0
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1E2233',
+          titleColor: '#E0E3EB', bodyColor: '#C8CDDB',
+          borderColor: '#2A2F45', borderWidth: 1,
+          padding: 10, cornerRadius: 6,
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.dataset.label === '续报率 %') return '续报率: ' + ctx.raw + '%';
+              return ctx.dataset.label + ': ' + ctx.raw;
+            }
+          }
+        }
+      }
+    },
+    plugins: [{
+      id: 'dataLabels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx, area = chart.chartArea;
+        if (!area) return;
+        const barTopBoxes = [];
+
+        // Stage 1: bar labels
+        chart.data.datasets.forEach((ds, di) => {
+          if (ds.type && ds.type !== 'bar') return;
+          const meta = chart.getDatasetMeta(di);
+          if (meta.hidden || !meta.data) return;
+          meta.data.forEach((bar, bi) => {
+            const value = ds.data[bi];
+            if (value === null || value === undefined) return;
+            const segH = bar.height || Math.abs(bar.y - (bar.base || 0));
+
+            // Segment internal label (skip 续费 PV)
+            if (segH >= 14 && ds.label !== '续费 PV') {
+              const midY = (bar.y + (bar.base || 0)) / 2;
+              const small = segH < 20;
+              const chipH = small ? 14 : 18, pad = small ? 4 : 6;
+              ctx.save();
+              ctx.font = (small ? '600 9px' : '600 10px') + ' -apple-system, "PingFang SC", sans-serif';
+              ctx.textAlign = 'center';
+              const text = String(value);
+              const tw = ctx.measureText(text).width;
+              const chipW = tw + pad * 2;
+              const chipX = bar.x - chipW / 2, chipY = midY - chipH / 2;
+              ctx.fillStyle = 'rgba(255,255,255,0.9)';
+              ctx.strokeStyle = ds.borderColor || '#6C7293';
+              ctx.lineWidth = 1;
+              _roundRect(ctx, chipX, chipY, chipW, chipH, small ? 4 : 6);
+              ctx.fill(); ctx.stroke();
+              ctx.fillStyle = '#0F1119';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(text, bar.x, midY);
+              ctx.restore();
+            }
+
+            // Top-of-bar label for 续费 PV
+            if (ds.label === '续费 PV' && value > 0) {
+              ctx.save();
+              const text = String(value);
+              ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
+              const tw = ctx.measureText(text).width;
+              const chipH = 16, pad = 7, chipW = tw + pad * 2;
+              const chipX = bar.x - chipW / 2;
+              const chipY = Math.max(area.top - chipH - 2, bar.y - chipH - 2);
+              barTopBoxes.push({ x:chipX, y:chipY, w:chipW, h:chipH, idx:bi });
+              ctx.fillStyle = 'rgba(29,158,117,0.15)';
+              ctx.strokeStyle = '#1D9E75'; ctx.lineWidth = 1;
+              _roundRect(ctx, chipX, chipY, chipW, chipH, 6);
+              ctx.fill(); ctx.stroke();
+              ctx.fillStyle = '#1D9E75';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(text, bar.x, chipY + chipH / 2);
+              ctx.restore();
+            }
+          });
+        });
+
+        const hOverlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x;
+
+        // Stage 2: line labels
+        chart.data.datasets.forEach((ds) => {
+          if (!ds.type || ds.type !== 'line') return;
+          const meta = chart.getDatasetMeta(chart.data.datasets.indexOf(ds));
+          if (meta.hidden || !meta.data) return;
+          const pts = [];
+          meta.data.forEach((pt, idx) => {
+            const value = ds.data[idx];
+            if (value === null || value === undefined) return;
+            const text = String(value) + '%';
+            ctx.save();
+            ctx.font = '600 10px -apple-system, "PingFang SC", sans-serif';
+            const tw = ctx.measureText(text).width;
+            ctx.restore();
+            const chipH = 16, pad = 5, chipW = tw + pad * 2;
+            let chipX = pt.x - chipW / 2;
+            let chipY = pt.y - chipH - 6;
+            pts.push({ idx, x:chipX, y:chipY, w:chipW, h:chipH, text, px:pt.x });
+          });
+
+          // Avoid overlap with bar top labels
+          pts.forEach(p => {
+            const bt = barTopBoxes.find(b => b.idx === p.idx);
+            if (bt && hOverlap(p, bt) && p.y < bt.y + bt.h + 2) p.y = bt.y - p.h - 4;
+          });
+          // Avoid overlap between line labels
+          for (let i = 0; i < pts.length; i++) {
+            for (let j = i+1; j < pts.length; j++) {
+              if (!hOverlap(pts[i], pts[j])) continue;
+              if (Math.abs(pts[i].y - pts[j].y) < 14) pts[j].y = pts[i].y - pts[j].h - 4;
+            }
+          }
+
+          pts.forEach(p => {
+            const drawY = Math.max(area.top + 2, p.y);
+            ctx.save();
+            ctx.font = '600 10px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillStyle = 'rgba(22,25,35,0.92)';
+            ctx.strokeStyle = '#F59E0B'; ctx.lineWidth = 1;
+            _roundRect(ctx, p.x, drawY, p.w, p.h, 4);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#F59E0B';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.text, p.px, drawY + p.h / 2);
+            ctx.restore();
+          });
+        });
+      }
+    }]
+  });
+}
+
+// ── Advisor Table ──
+function renderAdvisors() {
+  document.getElementById('advisorBody').innerHTML = ADVISORS.map(a => {
+    const total = a.pre + a.new;
+    const rate = a.active > 0 ? (total / a.active * 100).toFixed(1) : '0.0';
+    const pct = Math.min(100, parseFloat(rate));
+    const colorClass = pct >= 8 ? 'green' : (pct >= 4 ? 'amber' : '');
+    return `<tr>
+      <td>${a.name}</td>
+      <td class="num">${a.active}</td>
+      <td class="num">${a.should}</td>
+      <td class="num">${a.pre}</td>
+      <td class="num">${a.new}</td>
+      <td>
+        <span class="rate-bar-bg"><span class="rate-bar-fg" style="width:${pct}%"></span></span>
+        <span class="${colorClass}">${rate}%</span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Tab Switcher ──
+document.getElementById('periodTabs').addEventListener('click', function(e) {
+  if (!e.target.classList.contains('tab')) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  currentPeriod = e.target.dataset.period;
+  const data = TREND_DATA[currentPeriod];
+  renderKPIs(data);
+  renderChart(data);
+});
+
+// ── Init ──
+renderKPIs(TREND_DATA.all);
+renderChart(TREND_DATA.all);
+renderAdvisors();
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Label z-index test</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/js/uv-chart-labels.js?v=20260712c"></script>
+  <style>
+    body { font-family: system-ui; padding: 40px; background: #f5f6fa; }
+    .chart-box { width: 700px; height: 320px; background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+    .hint { color:#16A34A; font-size:13px; margin: 0 0 30px 2px; font-weight:600; }
+    h3 { margin: 0 0 12px; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <h3>堆叠柱顶部标签不应被柱子遮挡</h3>
+  <div class="chart-box">
+    <canvas id="c1"></canvas>
+  </div>
+  <div class="hint" id="hint1"></div>
+  <h3>组合图柱顶标签同样应在最前</h3>
+  <div class="chart-box">
+    <canvas id="c2"></canvas>
+  </div>
+  <div class="hint" id="hint2"></div>
+  <p style="color:#6C7293;font-size:13px">说明：Y 轴 max 已按最高柱自动 +15% 留白（见下方实际 max 值），标签落在绘图区内，无需覆盖柱体。</p>
+
+<script>
+function createStacked(id) {
+  new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels: ['7/6','7/7','7/8','7/9','7/10','7/11','7/12'],
+      datasets: [
+        { label: '退费 PV', data: [12,8,10,7,9,11,10], backgroundColor: 'rgba(232,80,91,0.7)', borderColor: '#E8505B', borderWidth: 0, borderRadius: 6, borderSkipped: false, stack: 'stack1', maxBarThickness: 52 },
+        { label: '在读 PV', data: [110,125,130,128,135,140,145], backgroundColor: 'rgba(55,138,221,0.7)', borderColor: '#378ADD', borderWidth: 0, borderRadius: 6, borderSkipped: false, stack: 'stack1', maxBarThickness: 52 },
+        { label: '续费 PV', data: [90,105,115,120,125,130,138], backgroundColor: 'rgba(22,163,74,0.75)', borderColor: '#16A34A', borderWidth: 0, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, stack: 'stack1', maxBarThickness: 52 },
+        { label: '续报率 %', data: [45,52,55,58,60,62,65], type: 'line', borderColor: '#E8943B', backgroundColor: 'transparent', tension: 0.4, pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#E8943B', pointBorderWidth: 2.5, borderWidth: 3, yAxisID: 'y1' }
+      ]
+    },
+    plugins: [UVChartLabels.dataLabelPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 18, right: 10, bottom: 0, left: 0 } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#6C7293', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.04)', drawBorder: false }, border: { display: false } },
+        y: { stacked: true, beginAtZero: true, ticks: { color: '#6C7293', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.04)', drawBorder: false }, border: { display: false } },
+        y1: { position: 'right', min: 0, max: 100, ticks: { color: '#E8943B', callback: v => v + '%' }, grid: { drawOnChartArea: false }, border: { display: false } }
+      },
+      plugins: { legend: { display: false }, uvDataLabels: { theme: 'light' } }
+    }
+  });
+}
+
+function createCombo(id) {
+  new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels: ['6月','7月'],
+      datasets: [
+        { label: '拉新 PV', data: [320, 410], backgroundColor: 'rgba(55,138,221,0.7)', borderColor: '#378ADD', borderWidth: 0, borderRadius: 6, order: 2, maxBarThickness: 80 },
+        { label: '转化率 %', data: [38.5, 42.3], type: 'line', borderColor: '#E8943B', backgroundColor: 'transparent', tension: 0.4, pointRadius: 6, pointBackgroundColor: '#fff', pointBorderColor: '#E8943B', pointBorderWidth: 2.5, borderWidth: 3, yAxisID: 'y1', order: 1 }
+      ]
+    },
+    plugins: [UVChartLabels.dataLabelPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 20 } },
+      scales: {
+        x: { ticks: { color: '#6C7293' }, grid: { display: false }, border: { display: false } },
+        y: { beginAtZero: true, ticks: { color: '#6C7293' }, grid: { color: 'rgba(0,0,0,.04)', drawBorder: false }, border: { display: false } },
+        y1: { position: 'right', min: 0, max: 100, ticks: { color: '#E8943B', callback: v => v + '%' }, grid: { drawOnChartArea: false }, border: { display: false } }
+      },
+      plugins: { legend: { display: false }, uvDataLabels: { theme: 'light' } }
+    }
+  });
+}
+
+createStacked('c1');
+createCombo('c2');
+
+// 显示实际生效的 Y 轴最大值，验证留白逻辑
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    const c1 = Chart.getChart('c1');
+    const c2 = Chart.getChart('c2');
+    if (c1) document.getElementById('hint1').textContent = '实际 Y 轴 max = ' + c1.scales.y.max + '（数据峰值约 ' + Math.max(...c1.data.datasets.reduce((a,d)=>a.concat(d.data),[])) + '，已自动 +15% 留白）';
+    if (c2) document.getElementById('hint2').textContent = '实际 Y 轴 max = ' + c2.scales.y.max + '（拉新峰值 ' + Math.max(...c2.data.datasets[0].data) + '，已自动 +15% 留白）';
+  }, 600);
+});
+</script>
+</body>
+</html>

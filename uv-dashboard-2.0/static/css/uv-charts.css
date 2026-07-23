@@ -1,0 +1,201 @@
+/* ═══════════════════════════════════════════════════════════════
+   UV Dashboard 2.0 — 图表容器样式
+   趋势图全宽单图布局 + 排行区双列
+   ═══════════════════════════════════════════════════════════════ */
+
+.chart-container { position: relative; margin-bottom: 8px; }
+.chart-container canvas { width: 100% !important; }
+
+/* ── 趋势图布局：默认双列，single-chart 类切换为全宽单图 ── */
+.dash-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.dash-charts-row.single-chart { grid-template-columns: 1fr; }
+.dash-charts-row.single-chart .chart-wide { width: 100%; }
+.dash-charts-row.single-chart .chart-container.wide { height: 420px; }
+
+/* ── 自定义图例行（更精致的内联图例）── */
+.chart-legend-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--bg-subtle);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-light);
+}
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.legend-group-label {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+.legend-group-label .legend-sub {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-left: 2px;
+}
+.legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 4px;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+.legend-dot.line {
+  border-radius: 50%;
+  width: 9px;
+  height: 9px;
+  border: 2.5px solid currentColor;
+  background: #fff !important;
+  border-color: #E8943B;
+  box-shadow: 0 0 0 1.5px rgba(232,148,59,.25);
+}
+
+/* ── 拉新图表控制区 — 更精致的交互 ── */
+.acq-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.acq-hint {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(79, 107, 237, 0.08);
+  border: 1px solid rgba(79, 107, 237, 0.25);
+  color: #5a4bb0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.acq-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.acq-toggle-group {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  border: 1px solid var(--border-light);
+}
+.acq-toggle-btn {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.acq-toggle-btn.active {
+  background: linear-gradient(135deg, #6B7CED, #4F6BED);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(79,107,237,0.3);
+}
+.acq-toggle-btn:not(.active):hover {
+  color: var(--text-primary);
+  background: rgba(0,0,0,0.04);
+}
+.acq-month-chips {
+  display: flex;
+  gap: 6px;
+}
+.acq-chip {
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.acq-chip.active {
+  background: var(--c-primary);
+  color: #fff;
+  border-color: var(--c-primary);
+  box-shadow: 0 2px 6px rgba(79,107,237,0.25);
+}
+.acq-chip:not(.active):hover {
+  color: var(--text-primary);
+  border-color: var(--c-primary);
+}
+
+/* 每月拉新总数行 */
+.acq-month-totals {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+.acq-total-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.acq-total-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.acq-total-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+.acq-total-month {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+.acq-total-num {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-primary);
+}
+.acq-total-sum {
+  background: linear-gradient(135deg, #6B7CED, #4F6BED);
+  border-color: transparent;
+}
+.acq-total-sum .acq-total-month,
+.acq-total-sum .acq-total-num {
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .dash-charts-row { grid-template-columns: 1fr; }
+  .dash-charts-row.single-chart .chart-container.wide { height: 360px; }
+  .ranking-grid { grid-template-columns: 1fr; }
+  .chart-legend-row { gap: 14px; padding: 8px 10px; }
+}

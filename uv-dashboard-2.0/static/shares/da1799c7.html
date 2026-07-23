@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UV数据看板 · da1799c7</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+/* ══ UV Dashboard 2.0 — 分享页面 (内联样式，与主面板配色一致) ══ */
+:root {
+  --c-primary: #2563EB; --c-primary-hover: #1D4ED8; --c-primary-light: #EFF6FF;
+  --c-math: #378ADD; --c-math-bg: #EBF5FC;
+  --c-chinese: #639922; --c-chinese-bg: #F0F7E8;
+  --c-english: #BA7517; --c-english-bg: #FAF3E8;
+  --c-success: #16A34A; --c-success-bg: #DCFCE7; --c-success-text: #166534;
+  --c-warning: #CA8A04; --c-warning-bg: #FEF3C7; --c-warning-text: #854D0E;
+  --c-danger: #DC2626; --c-danger-bg: #FEE2E2; --c-danger-text: #991B1B;
+  --c-accent-red: #E8505B; --c-accent-orange: #E8943B; --c-accent-purple: #8B5CF6;
+  --c-tag-tiancheng: #F5A623; --c-tag-tongle: #1D9E75; --c-tag-baojian: #378ADD; --c-tag-default: #6B7280;
+  --bg-page: #F5F6FA; --bg-panel: #FFFFFF; --bg-subtle: #F8F9FB; --bg-hover: #F0F4FF; --bg-muted: #F3F4F6;
+  --text-primary: #1A1A2E; --text-secondary: #2D3142; --text-tertiary: #6C7293; --text-muted: #999999;
+  --border-light: #E8E9F0; --border-default: #E5E7EB;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06); --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+  --r-xs: 3px; --r-sm: 5px; --r-md: 8px; --r-lg: 10px; --r-xl: 12px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacsonFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+       background: var(--bg-page); color: var(--text-secondary); min-height: 100vh; padding: 24px 20px 48px; -webkit-font-smoothing: antialiased; }
+.container { max-width: 1040px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+.filter-label { font-size: 12px; color: var(--text-tertiary); }
+.filter-text { font-size: 13px; color: var(--text-secondary); }
+
+/* ── KPI Cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.kpi-card { background: var(--bg-panel); border-radius: var(--r-lg); padding: 18px 20px; border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); }
+.kpi-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; font-weight: 500; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+.kpi-sub { font-size: 12px; color: var(--c-success); margin-top: 4px; }
+.kpi-card.blue .kpi-value { color: var(--c-math); }
+.kpi-card.red .kpi-value { color: var(--c-accent-red); }
+.kpi-card.green .kpi-value { color: var(--c-success); }
+.kpi-card.amber .kpi-value { color: var(--c-accent-orange); }
+
+/* ── Chart Card ── */
+.chart-card { background: var(--bg-panel); border-radius: var(--r-lg); padding: 22px; border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); margin-bottom: 20px; }
+.chart-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; }
+.chart-wrap { position: relative; height: 300px; }
+.chart-wrap canvas { width: 100% !important; }
+.legend-row { display: flex; gap: 18px; margin-bottom: 10px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-tertiary); }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* ── Ranking Grid ── */
+.ranking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.rank-card { background: var(--bg-panel); border-radius: var(--r-lg); padding: 18px; border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); }
+.rank-card h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; }
+.rank-list { display: flex; flex-direction: column; gap: 4px; }
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); transition: background .15s; cursor: default; }
+.rank-item:hover { background: var(--bg-hover); }
+.rank-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; background: var(--bg-muted); color: var(--text-tertiary); }
+.rank-num.gold { background: linear-gradient(135deg, #F59E0B, #D97706); color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,.3); }
+.rank-num.silver { background: linear-gradient(135deg, #94A3B8, #64748B); color: #fff; }
+.rank-num.bronze { background: linear-gradient(135deg, #D97706, #B45309); color: #fff; }
+.rank-info { flex: 1; min-width: 0; }
+.rank-name { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+.rank-stats { display: flex; gap: 12px; font-size: 11px; color: var(--text-muted); }
+.rank-stats span strong { color: var(--text-tertiary); font-weight: 600; }
+.rank-rate { font-size: 15px; font-weight: 700; flex-shrink: 0; text-align: right; min-width: 48px; }
+.rank-rate.high { color: var(--c-success); }
+.rank-rate.mid { color: var(--c-warning); }
+.rank-rate.low { color: var(--c-danger); }
+.empty-hint { text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px; }
+
+/* ── Mode Toggle ── */
+.mode-toggle { display: inline-flex; background: var(--bg-subtle); border-radius: var(--r-md); padding: 2px; gap: 2px; }
+.mode-btn { padding: 5px 14px; font-size: 11px; border-radius: var(--r-sm); border: none; cursor: pointer; background: transparent; color: var(--text-tertiary); font-weight: 500; transition: all .2s; white-space: nowrap; }
+.mode-btn.active { background: var(--c-primary); color: #fff; font-weight: 600; }
+.mode-btn:hover:not(.active) { color: var(--c-primary); }
+
+/* ── Subject Pill ── */
+.subj-pill { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 600; color: #fff; margin-right: 4px; }
+.subj-pill.sx { background: var(--c-math); }
+.subj-pill.yd { background: var(--c-chinese); }
+.subj-pill.sy { background: var(--c-english); }
+
+/* ── Advisor Tag Pill ── */
+.adv-tag { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 600; color: #fff; margin-right: 4px; }
+
+/* ── Badge ── */
+.badge-renew { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+.badge-renew.high { background: var(--c-success-bg); color: var(--c-success-text); }
+.badge-renew.mid { background: var(--c-warning-bg); color: var(--c-warning-text); }
+.badge-renew.low { background: var(--c-danger-bg); color: var(--c-danger-text); }
+
+/* ── Footer ── */
+.footer { text-align: center; color: var(--text-muted); font-size: 11px; padding: 16px; }
+
+@media (max-width: 768px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .ranking-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>UV数据看板</h1>
+  <p class="subtitle">数据更新时间：2026-07-07 20:23:28 · 期次：all</p>
+
+  
+  <div class="filter-bar">
+    <span class="filter-label">当前筛选：</span>
+    <span class="filter-text">all / 全部教学点</span>
+  </div>
+  
+
+  <!-- KPI -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- 趋势图表 -->
+  <div class="chart-card">
+    <div class="chart-title">在读 / 退费 / 续报趋势</div>
+    <div class="legend-row">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-math)"></span>在读 PV</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-accent-red)"></span>退费 PV</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-success)"></span>续报 PV</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-accent-orange);border-radius:50%;width:8px;height:8px"></span>续报率 %</div>
+    </div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  </div>
+
+  <!-- 排行 -->
+  <div class="ranking-grid">
+    <div class="rank-card">
+      <h3>
+        <span id="teacherRankTitle">主讲续报率排行</span>
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="renewal" onclick="switchTeacherMode('renewal')">续报</button>
+          <button class="mode-btn" data-mode="conversion" onclick="switchTeacherMode('conversion')">转化</button>
+        </div>
+      </h3>
+      <div class="rank-list" id="teacherRankList"></div>
+    </div>
+
+    <div class="rank-card">
+      <h3>
+        <span id="advisorRankTitle">顾问续报排行</span>
+        <div style="display:flex;gap:6px">
+          <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="renewal" onclick="switchAdvisorMode('renewal')">续报</button>
+            <button class="mode-btn" data-mode="conversion" onclick="switchAdvisorMode('conversion')">转化</button>
+          </div>
+          <div class="mode-toggle">
+            <button class="mode-btn active" data-uv="uv" onclick="switchAdvisorUVMode('uv')">UV</button>
+            <button class="mode-btn" data-uv="pv" onclick="switchAdvisorUVMode('pv')">PV</button>
+          </div>
+        </div>
+      </h3>
+      <div class="rank-list" id="advisorRankList"></div>
+    </div>
+  </div>
+
+  <div class="footer">UV Dashboard 2.0 · 雪球素养</div>
+</div>
+
+<script>
+// ── 内嵌数据 ──
+var STATS = {"total_uv": 430, "active_uv": 405, "refund_uv": 25, "active_pv": 1097, "refund_pv": 83, "renewed_pv": 134, "pre_renewed_pv": 89, "new_renewed_pv": 45, "total_renewal_rate": 12.2, "total_refund_rate": 7.0, "total_renewed_uv": 78, "total_renewal_uv_rate": 19.3, "by_subject": [{"name": "\u6570\u5b66", "key": "\u96ea\u7403\u601d\u7ef4", "active": 371, "renewed": 61, "refund": 26, "renewal_rate": 16.4, "color": "#378ADD"}, {"name": "\u8bed\u6587", "key": "\u60a6\u8bfb\u521b\u4f5c", "active": 369, "renewed": 39, "refund": 28, "renewal_rate": 10.6, "color": "#639922"}, {"name": "\u82f1\u8bed", "key": "\u53cc\u8bed\u7d20\u517b", "active": 357, "renewed": 34, "refund": 29, "renewal_rate": 9.5, "color": "#BA7517"}], "by_period": {"\u96f6\u671f": {"active_pv": 298, "refund_pv": 37, "renewed_pv": 87, "pre_pv": 42, "new_pv": 45, "active_uv": 119, "renewed_uv": 46, "refund_uv": 10, "total_uv": 129, "renewal_rate": 29.2, "refund_rate": 11.0}, "\u4e00\u671f": {"active_pv": 313, "refund_pv": 28, "renewed_pv": 29, "pre_pv": 29, "new_pv": 0, "active_uv": 135, "renewed_uv": 21, "refund_uv": 9, "total_uv": 144, "renewal_rate": 9.3, "refund_rate": 8.2}, "\u4e8c\u671f": {"active_pv": 239, "refund_pv": 7, "renewed_pv": 18, "pre_pv": 18, "new_pv": 0, "active_uv": 104, "renewed_uv": 15, "refund_uv": 1, "total_uv": 105, "renewal_rate": 7.5, "refund_rate": 2.8}, "\u4e09\u671f": {"active_pv": 247, "refund_pv": 11, "renewed_pv": 0, "pre_pv": 0, "new_pv": 0, "active_uv": 86, "renewed_uv": 0, "refund_uv": 5, "total_uv": 91, "renewal_rate": 0.0, "refund_rate": 4.3}}, "by_teacher": [{"name": "\u9648\u4e2d\u5e05", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 154, "renewed_pv": 48, "refund_pv": 12, "pre_renewed_pv": 40, "new_renewed_pv": 8, "should_renew": 114, "renewal_rate": 31.2, "conv_rate": 7.0, "active_count": 154, "renewed_count": 48}, {"name": "\u9ec4\u94ed\u6021", "subject": "\u60a6\u8bfb\u521b\u4f5c", "active_pv": 113, "renewed_pv": 31, "refund_pv": 7, "pre_renewed_pv": 27, "new_renewed_pv": 4, "should_renew": 86, "renewal_rate": 27.4, "conv_rate": 4.7, "active_count": 113, "renewed_count": 31}, {"name": "\u5218\u5e0c\u5b50", "subject": "\u53cc\u8bed\u7d20\u517b", "active_pv": 85, "renewed_pv": 11, "refund_pv": 10, "pre_renewed_pv": 4, "new_renewed_pv": 7, "should_renew": 81, "renewal_rate": 12.9, "conv_rate": 8.6, "active_count": 85, "renewed_count": 11}, {"name": "\u9ad8\u5fc3\u602104", "subject": "\u53cc\u8bed\u7d20\u517b", "active_pv": 110, "renewed_pv": 13, "refund_pv": 10, "pre_renewed_pv": 7, "new_renewed_pv": 6, "should_renew": 103, "renewal_rate": 11.8, "conv_rate": 5.8, "active_count": 110, "renewed_count": 13}, {"name": "\u7530\u96e8\u6db501", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 111, "renewed_pv": 11, "refund_pv": 9, "pre_renewed_pv": 3, "new_renewed_pv": 8, "should_renew": 108, "renewal_rate": 9.9, "conv_rate": 7.4, "active_count": 111, "renewed_count": 11}, {"name": "\u8096\u951003", "subject": "\u53cc\u8bed\u7d20\u517b", "active_pv": 162, "renewed_pv": 10, "refund_pv": 9, "pre_renewed_pv": 4, "new_renewed_pv": 6, "should_renew": 158, "renewal_rate": 6.2, "conv_rate": 3.8, "active_count": 162, "renewed_count": 10}, {"name": "\u9648\u535705", "subject": "\u60a6\u8bfb\u521b\u4f5c", "active_pv": 84, "renewed_pv": 4, "refund_pv": 7, "pre_renewed_pv": 1, "new_renewed_pv": 3, "should_renew": 83, "renewal_rate": 4.8, "conv_rate": 3.6, "active_count": 84, "renewed_count": 4}, {"name": "\u674e\u6da6", "subject": "\u60a6\u8bfb\u521b\u4f5c", "active_pv": 172, "renewed_pv": 4, "refund_pv": 14, "pre_renewed_pv": 1, "new_renewed_pv": 3, "should_renew": 171, "renewal_rate": 2.3, "conv_rate": 1.8, "active_count": 172, "renewed_count": 4}, {"name": "\u4f55\u548f04", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 89, "renewed_pv": 2, "refund_pv": 5, "pre_renewed_pv": 2, "new_renewed_pv": 0, "should_renew": 87, "renewal_rate": 2.2, "conv_rate": 0.0, "active_count": 89, "renewed_count": 2}, {"name": "\u5b97\u5fd7\u9e4f", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 17, "renewed_pv": 0, "refund_pv": 0, "pre_renewed_pv": 0, "new_renewed_pv": 0, "should_renew": 17, "renewal_rate": 0.0, "conv_rate": 0.0, "active_count": 17, "renewed_count": 0}], "by_advisor": [{"name": "\u620e\u51ef01", "active": 43, "pre_renewed": 9, "should_renew": 34, "new_renewed": 7, "total_renewed": 16, "renewal_rate": 20.6, "pv_active": 119, "pv_pre_renewed": 16, "pv_should_renew": 103, "pv_new_renewed": 14, "pv_total_renewed": 30, "pv_renewal_rate": 13.6, "tag": "\u540c", "tag_color": "#1d9e75"}, {"name": "\u738b\u4e3d", "active": 56, "pre_renewed": 11, "should_renew": 45, "new_renewed": 8, "total_renewed": 19, "renewal_rate": 17.8, "pv_active": 154, "pv_pre_renewed": 20, "pv_should_renew": 134, "pv_new_renewed": 12, "pv_total_renewed": 32, "pv_renewal_rate": 9.0, "tag": "\u540c", "tag_color": "#1d9e75"}, {"name": "\u738b\u8fbe04", "active": 23, "pre_renewed": 3, "should_renew": 20, "new_renewed": 3, "total_renewed": 6, "renewal_rate": 15.0, "pv_active": 60, "pv_pre_renewed": 4, "pv_should_renew": 56, "pv_new_renewed": 5, "pv_total_renewed": 9, "pv_renewal_rate": 8.9, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u82cf\u4e3d\u5a77", "active": 19, "pre_renewed": 1, "should_renew": 18, "new_renewed": 2, "total_renewed": 3, "renewal_rate": 11.1, "pv_active": 54, "pv_pre_renewed": 1, "pv_should_renew": 53, "pv_new_renewed": 3, "pv_total_renewed": 4, "pv_renewal_rate": 5.7, "tag": "\u540c", "tag_color": "#1d9e75"}, {"name": "\u9648\u4eae\u5ef6", "active": 19, "pre_renewed": 1, "should_renew": 18, "new_renewed": 2, "total_renewed": 3, "renewal_rate": 11.1, "pv_active": 52, "pv_pre_renewed": 2, "pv_should_renew": 50, "pv_new_renewed": 4, "pv_total_renewed": 6, "pv_renewal_rate": 8.0, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u6797\u5fd7\u8c6a01", "active": 61, "pre_renewed": 10, "should_renew": 51, "new_renewed": 4, "total_renewed": 14, "renewal_rate": 7.8, "pv_active": 168, "pv_pre_renewed": 14, "pv_should_renew": 154, "pv_new_renewed": 6, "pv_total_renewed": 20, "pv_renewal_rate": 3.9, "tag": "\u5b9d", "tag_color": "#378add"}, {"name": "\u6768\u679733", "active": 51, "pre_renewed": 5, "should_renew": 46, "new_renewed": 1, "total_renewed": 6, "renewal_rate": 2.2, "pv_active": 141, "pv_pre_renewed": 6, "pv_should_renew": 135, "pv_new_renewed": 1, "pv_total_renewed": 7, "pv_renewal_rate": 0.7, "tag": "\u5b9d", "tag_color": "#378add"}, {"name": "\u6c88\u601d\u6d69", "active": 38, "pre_renewed": 5, "should_renew": 33, "new_renewed": 0, "total_renewed": 5, "renewal_rate": 0.0, "pv_active": 109, "pv_pre_renewed": 7, "pv_should_renew": 102, "pv_new_renewed": 0, "pv_total_renewed": 7, "pv_renewal_rate": 0.0, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u5f20\u654f\u70e8", "active": 73, "pre_renewed": 4, "should_renew": 69, "new_renewed": 0, "total_renewed": 4, "renewal_rate": 0.0, "pv_active": 197, "pv_pre_renewed": 6, "pv_should_renew": 191, "pv_new_renewed": 0, "pv_total_renewed": 6, "pv_renewal_rate": 0.0, "tag": "\u5b9d", "tag_color": "#378add"}, {"name": "\u9f99\u5029\u654f", "active": 6, "pre_renewed": 0, "should_renew": 6, "new_renewed": 0, "total_renewed": 0, "renewal_rate": 0.0, "pv_active": 18, "pv_pre_renewed": 0, "pv_should_renew": 18, "pv_new_renewed": 0, "pv_total_renewed": 0, "pv_renewal_rate": 0.0, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u718a\u5929\u5b9d01", "active": 3, "pre_renewed": 1, "should_renew": 2, "new_renewed": 0, "total_renewed": 1, "renewal_rate": 0.0, "pv_active": 7, "pv_pre_renewed": 1, "pv_should_renew": 6, "pv_new_renewed": 0, "pv_total_renewed": 1, "pv_renewal_rate": 0.0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u5c1a\u6b4601", "active": 2, "pre_renewed": 0, "should_renew": 2, "new_renewed": 0, "total_renewed": 0, "renewal_rate": 0.0, "pv_active": 5, "pv_pre_renewed": 0, "pv_should_renew": 5, "pv_new_renewed": 0, "pv_total_renewed": 0, "pv_renewal_rate": 0.0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u672a\u77e5", "active": 8, "pre_renewed": 8, "should_renew": 0, "new_renewed": 0, "total_renewed": 8, "renewal_rate": 0, "pv_active": 8, "pv_pre_renewed": 8, "pv_should_renew": 0, "pv_new_renewed": 0, "pv_total_renewed": 8, "pv_renewal_rate": 0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u6768\u5229\u5a1f10", "active": 1, "pre_renewed": 1, "should_renew": 0, "new_renewed": 0, "total_renewed": 1, "renewal_rate": 0, "pv_active": 1, "pv_pre_renewed": 1, "pv_should_renew": 0, "pv_new_renewed": 0, "pv_total_renewed": 1, "pv_renewal_rate": 0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u7f57\u7389\u73b2", "active": 2, "pre_renewed": 2, "should_renew": 0, "new_renewed": 0, "total_renewed": 2, "renewal_rate": 0, "pv_active": 4, "pv_pre_renewed": 3, "pv_should_renew": 1, "pv_new_renewed": 0, "pv_total_renewed": 3, "pv_renewal_rate": 0.0, "tag": "\u6559", "tag_color": "#8c92a3"}], "by_point": [{"name": "\u65b0\u5b9d\u5229", "active_pv": 658, "refund_pv": 34, "renewed_pv": 52, "uv": 243, "renewed_uv": 34, "class_count": 28, "renewal_rate": 7.9, "renewal_uv_rate": 14.0}, {"name": "\u5929\u6210\u5927\u53a6", "active_pv": 106, "refund_pv": 9, "renewed_pv": 13, "uv": 42, "renewed_uv": 10, "class_count": 12, "renewal_rate": 12.3, "renewal_uv_rate": 23.8}, {"name": "\u540c\u521b\u6c47", "active_pv": 333, "refund_pv": 40, "renewed_pv": 69, "uv": 120, "renewed_uv": 34, "class_count": 20, "renewal_rate": 20.7, "renewal_uv_rate": 28.3}], "by_class": [], "renewal_rate_by_period": {"\u96ea\u7403\u601d\u7ef4": {"\u96f6\u671f": 37.4, "\u4e00\u671f": 14.8, "\u4e8c\u671f": 9.9, "\u4e09\u671f": 0.0}, "\u60a6\u8bfb\u521b\u4f5c": {"\u96f6\u671f": 24.0, "\u4e00\u671f": 7.5, "\u4e8c\u671f": 9.5, "\u4e09\u671f": 0.0}, "\u53cc\u8bed\u7d20\u517b": {"\u96f6\u671f": 26.2, "\u4e00\u671f": 5.1, "\u4e8c\u671f": 2.7, "\u4e09\u671f": 0.0}}, "subject_period_renewal": {"\u96ea\u7403\u601d\u7ef4": {"\u96f6\u671f": 37.4, "\u4e00\u671f": 14.8, "\u4e8c\u671f": 9.9, "\u4e09\u671f": 0.0}, "\u60a6\u8bfb\u521b\u4f5c": {"\u96f6\u671f": 24.0, "\u4e00\u671f": 7.5, "\u4e8c\u671f": 9.5, "\u4e09\u671f": 0.0}, "\u53cc\u8bed\u7d20\u517b": {"\u96f6\u671f": 26.2, "\u4e00\u671f": 5.1, "\u4e8c\u671f": 2.7, "\u4e09\u671f": 0.0}}, "total": 430, "active": 405, "refund": 25, "run_time": "2026-07-07 20:23:28"};
+var TEACHERS = [{"name": "\u9648\u4e2d\u5e05", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 154, "renewed_pv": 48, "refund_pv": 12, "pre_renewed_pv": 40, "new_renewed_pv": 8, "should_renew": 114, "renewal_rate": 31.2, "conv_rate": 7.0, "active_count": 154, "renewed_count": 48}, {"name": "\u9ec4\u94ed\u6021", "subject": "\u60a6\u8bfb\u521b\u4f5c", "active_pv": 113, "renewed_pv": 31, "refund_pv": 7, "pre_renewed_pv": 27, "new_renewed_pv": 4, "should_renew": 86, "renewal_rate": 27.4, "conv_rate": 4.7, "active_count": 113, "renewed_count": 31}, {"name": "\u5218\u5e0c\u5b50", "subject": "\u53cc\u8bed\u7d20\u517b", "active_pv": 85, "renewed_pv": 11, "refund_pv": 10, "pre_renewed_pv": 4, "new_renewed_pv": 7, "should_renew": 81, "renewal_rate": 12.9, "conv_rate": 8.6, "active_count": 85, "renewed_count": 11}, {"name": "\u9ad8\u5fc3\u602104", "subject": "\u53cc\u8bed\u7d20\u517b", "active_pv": 110, "renewed_pv": 13, "refund_pv": 10, "pre_renewed_pv": 7, "new_renewed_pv": 6, "should_renew": 103, "renewal_rate": 11.8, "conv_rate": 5.8, "active_count": 110, "renewed_count": 13}, {"name": "\u7530\u96e8\u6db501", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 111, "renewed_pv": 11, "refund_pv": 9, "pre_renewed_pv": 3, "new_renewed_pv": 8, "should_renew": 108, "renewal_rate": 9.9, "conv_rate": 7.4, "active_count": 111, "renewed_count": 11}, {"name": "\u8096\u951003", "subject": "\u53cc\u8bed\u7d20\u517b", "active_pv": 162, "renewed_pv": 10, "refund_pv": 9, "pre_renewed_pv": 4, "new_renewed_pv": 6, "should_renew": 158, "renewal_rate": 6.2, "conv_rate": 3.8, "active_count": 162, "renewed_count": 10}, {"name": "\u9648\u535705", "subject": "\u60a6\u8bfb\u521b\u4f5c", "active_pv": 84, "renewed_pv": 4, "refund_pv": 7, "pre_renewed_pv": 1, "new_renewed_pv": 3, "should_renew": 83, "renewal_rate": 4.8, "conv_rate": 3.6, "active_count": 84, "renewed_count": 4}, {"name": "\u674e\u6da6", "subject": "\u60a6\u8bfb\u521b\u4f5c", "active_pv": 172, "renewed_pv": 4, "refund_pv": 14, "pre_renewed_pv": 1, "new_renewed_pv": 3, "should_renew": 171, "renewal_rate": 2.3, "conv_rate": 1.8, "active_count": 172, "renewed_count": 4}, {"name": "\u4f55\u548f04", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 89, "renewed_pv": 2, "refund_pv": 5, "pre_renewed_pv": 2, "new_renewed_pv": 0, "should_renew": 87, "renewal_rate": 2.2, "conv_rate": 0.0, "active_count": 89, "renewed_count": 2}, {"name": "\u5b97\u5fd7\u9e4f", "subject": "\u96ea\u7403\u601d\u7ef4", "active_pv": 17, "renewed_pv": 0, "refund_pv": 0, "pre_renewed_pv": 0, "new_renewed_pv": 0, "should_renew": 17, "renewal_rate": 0.0, "conv_rate": 0.0, "active_count": 17, "renewed_count": 0}];
+var ADVISORS = [{"name": "\u620e\u51ef01", "active": 43, "pre_renewed": 9, "should_renew": 34, "new_renewed": 7, "total_renewed": 16, "renewal_rate": 20.6, "pv_active": 119, "pv_pre_renewed": 16, "pv_should_renew": 103, "pv_new_renewed": 14, "pv_total_renewed": 30, "pv_renewal_rate": 13.6, "tag": "\u540c", "tag_color": "#1d9e75"}, {"name": "\u738b\u4e3d", "active": 56, "pre_renewed": 11, "should_renew": 45, "new_renewed": 8, "total_renewed": 19, "renewal_rate": 17.8, "pv_active": 154, "pv_pre_renewed": 20, "pv_should_renew": 134, "pv_new_renewed": 12, "pv_total_renewed": 32, "pv_renewal_rate": 9.0, "tag": "\u540c", "tag_color": "#1d9e75"}, {"name": "\u738b\u8fbe04", "active": 23, "pre_renewed": 3, "should_renew": 20, "new_renewed": 3, "total_renewed": 6, "renewal_rate": 15.0, "pv_active": 60, "pv_pre_renewed": 4, "pv_should_renew": 56, "pv_new_renewed": 5, "pv_total_renewed": 9, "pv_renewal_rate": 8.9, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u82cf\u4e3d\u5a77", "active": 19, "pre_renewed": 1, "should_renew": 18, "new_renewed": 2, "total_renewed": 3, "renewal_rate": 11.1, "pv_active": 54, "pv_pre_renewed": 1, "pv_should_renew": 53, "pv_new_renewed": 3, "pv_total_renewed": 4, "pv_renewal_rate": 5.7, "tag": "\u540c", "tag_color": "#1d9e75"}, {"name": "\u9648\u4eae\u5ef6", "active": 19, "pre_renewed": 1, "should_renew": 18, "new_renewed": 2, "total_renewed": 3, "renewal_rate": 11.1, "pv_active": 52, "pv_pre_renewed": 2, "pv_should_renew": 50, "pv_new_renewed": 4, "pv_total_renewed": 6, "pv_renewal_rate": 8.0, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u6797\u5fd7\u8c6a01", "active": 61, "pre_renewed": 10, "should_renew": 51, "new_renewed": 4, "total_renewed": 14, "renewal_rate": 7.8, "pv_active": 168, "pv_pre_renewed": 14, "pv_should_renew": 154, "pv_new_renewed": 6, "pv_total_renewed": 20, "pv_renewal_rate": 3.9, "tag": "\u5b9d", "tag_color": "#378add"}, {"name": "\u6768\u679733", "active": 51, "pre_renewed": 5, "should_renew": 46, "new_renewed": 1, "total_renewed": 6, "renewal_rate": 2.2, "pv_active": 141, "pv_pre_renewed": 6, "pv_should_renew": 135, "pv_new_renewed": 1, "pv_total_renewed": 7, "pv_renewal_rate": 0.7, "tag": "\u5b9d", "tag_color": "#378add"}, {"name": "\u6c88\u601d\u6d69", "active": 38, "pre_renewed": 5, "should_renew": 33, "new_renewed": 0, "total_renewed": 5, "renewal_rate": 0.0, "pv_active": 109, "pv_pre_renewed": 7, "pv_should_renew": 102, "pv_new_renewed": 0, "pv_total_renewed": 7, "pv_renewal_rate": 0.0, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u5f20\u654f\u70e8", "active": 73, "pre_renewed": 4, "should_renew": 69, "new_renewed": 0, "total_renewed": 4, "renewal_rate": 0.0, "pv_active": 197, "pv_pre_renewed": 6, "pv_should_renew": 191, "pv_new_renewed": 0, "pv_total_renewed": 6, "pv_renewal_rate": 0.0, "tag": "\u5b9d", "tag_color": "#378add"}, {"name": "\u9f99\u5029\u654f", "active": 6, "pre_renewed": 0, "should_renew": 6, "new_renewed": 0, "total_renewed": 0, "renewal_rate": 0.0, "pv_active": 18, "pv_pre_renewed": 0, "pv_should_renew": 18, "pv_new_renewed": 0, "pv_total_renewed": 0, "pv_renewal_rate": 0.0, "tag": "\u5929", "tag_color": "#f5a623"}, {"name": "\u718a\u5929\u5b9d01", "active": 3, "pre_renewed": 1, "should_renew": 2, "new_renewed": 0, "total_renewed": 1, "renewal_rate": 0.0, "pv_active": 7, "pv_pre_renewed": 1, "pv_should_renew": 6, "pv_new_renewed": 0, "pv_total_renewed": 1, "pv_renewal_rate": 0.0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u5c1a\u6b4601", "active": 2, "pre_renewed": 0, "should_renew": 2, "new_renewed": 0, "total_renewed": 0, "renewal_rate": 0.0, "pv_active": 5, "pv_pre_renewed": 0, "pv_should_renew": 5, "pv_new_renewed": 0, "pv_total_renewed": 0, "pv_renewal_rate": 0.0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u672a\u77e5", "active": 8, "pre_renewed": 8, "should_renew": 0, "new_renewed": 0, "total_renewed": 8, "renewal_rate": 0, "pv_active": 8, "pv_pre_renewed": 8, "pv_should_renew": 0, "pv_new_renewed": 0, "pv_total_renewed": 8, "pv_renewal_rate": 0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u6768\u5229\u5a1f10", "active": 1, "pre_renewed": 1, "should_renew": 0, "new_renewed": 0, "total_renewed": 1, "renewal_rate": 0, "pv_active": 1, "pv_pre_renewed": 1, "pv_should_renew": 0, "pv_new_renewed": 0, "pv_total_renewed": 1, "pv_renewal_rate": 0, "tag": "\u6559", "tag_color": "#8c92a3"}, {"name": "\u7f57\u7389\u73b2", "active": 2, "pre_renewed": 2, "should_renew": 0, "new_renewed": 0, "total_renewed": 2, "renewal_rate": 0, "pv_active": 4, "pv_pre_renewed": 3, "pv_should_renew": 1, "pv_new_renewed": 0, "pv_total_renewed": 3, "pv_renewal_rate": 0.0, "tag": "\u6559", "tag_color": "#8c92a3"}];
+var CURRENT_PERIOD = "\u96f6\u671f";
+
+var mainChart = null;
+var teacherRankMode = 'renewal';
+var advisorRankMode = 'renewal';
+var advisorUVMode = 'uv';
+
+// ── 颜色常量 (与 CSS :root 同步) ──
+var C = {
+  primary: '#2563EB', math: '#378ADD', chinese: '#639922', english: '#BA7517',
+  success: '#16A34A', successBg: '#DCFCE7', accentRed: '#E8505B', accentOrange: '#E8943B',
+  textPrimary: '#1A1A2E', textTertiary: '#6C7293', textMuted: '#999999',
+};
+
+var SUBJECT_SHORT = { '雪球思维': '数', '悦读创作': '语', '双语素养': '英' };
+var SUBJECT_PILL_CLASS = { '雪球思维': 'sx', '悦读创作': 'yd', '双语素养': 'sy' };
+var ADVISOR_TAG_COLOR = { '天': '#F5A623', '同': '#1D9E75', '宝': '#378ADD', '教': '#8C92A3' };
+var ADVISOR_POINT_TAG = {
+  '陈亮延': '天', '王达04': '天', '沈思浩': '天', '龙倩敏': '天',
+  '戎凯01': '同', '王丽': '同', '苏丽婷': '同',
+  '杨林33': '宝', '林志豪01': '宝', '张敏烨': '宝',
+};
+
+function rateColor(rate) {
+  if (rate >= 30) return 'high';
+  if (rate >= 15) return 'mid';
+  return 'low';
+}
+function medalClass(idx) {
+  if (idx === 0) return 'gold';
+  if (idx === 1) return 'silver';
+  if (idx === 2) return 'bronze';
+  return '';
+}
+function getAdvisorTag(name) { return ADVISOR_POINT_TAG[name] || '教'; }
+function getAdvisorTagColor(name) {
+  var tag = getAdvisorTag(name);
+  return ADVISOR_TAG_COLOR[tag] || ADVISOR_TAG_COLOR['教'];
+}
+
+// ── KPI ──
+function renderKPIs() {
+  var s = STATS;
+  var cards = [
+    { label: '在读 PV', value: s.active_pv, cls: 'blue', sub: '在读人次' },
+    { label: '退费 PV', value: s.refund_pv, cls: 'red', sub: '退费人次' },
+    { label: '续报 PV', value: s.renewed_pv, cls: 'green', sub: '续报率 ' + s.total_renewal_rate + '%' },
+    { label: '续报率', value: s.total_renewal_rate + '%', cls: 'amber', sub: '在读UV ' + s.active_uv },
+  ];
+  document.getElementById('kpiGrid').innerHTML = cards.map(function(c) {
+    return '<div class="kpi-card ' + c.cls + '"><div class="kpi-label">' + c.label + '</div><div class="kpi-value">' + c.value + '</div><div class="kpi-sub">' + c.sub + '</div></div>';
+  }).join('');
+}
+
+// ── 图表 ──
+function renderChart() {
+  var ctx = document.getElementById('mainChart').getContext('2d');
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+
+  var periods = ['零期', '一期', '二期', '三期'];
+  var activeData = periods.map(function(p) {
+    return (STATS.by_period && STATS.by_period[p]) ? (STATS.by_period[p].active_pv || 0) : 0;
+  });
+  var refundData = periods.map(function(p) {
+    return (STATS.by_period && STATS.by_period[p]) ? (STATS.by_period[p].refund_pv || 0) : 0;
+  });
+  var renewData = periods.map(function(p) {
+    return (STATS.by_period && STATS.by_period[p]) ? (STATS.by_period[p].renewed_pv || 0) : 0;
+  });
+  var rateData = periods.map(function(p, i) {
+    return activeData[i] > 0 ? parseFloat((renewData[i] / activeData[i] * 100).toFixed(1)) : 0;
+  });
+
+  mainChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: periods,
+      datasets: [
+        { label: '在读 PV', data: activeData, backgroundColor: C.math, stack: 's1', maxBarThickness: 56 },
+        { label: '退费 PV', data: refundData, backgroundColor: C.accentRed, stack: 's1', maxBarThickness: 56 },
+        { label: '续报 PV', data: renewData, backgroundColor: C.success, stack: 's1', maxBarThickness: 56 },
+        { label: '续报率', data: rateData, type: 'line', borderColor: C.accentOrange, backgroundColor: 'rgba(232,148,59,0.1)', fill: false, tension: 0.3, yAxisID: 'y1', pointRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true },
+        y1: { position: 'right', beginAtZero: true, max: 100, grid: { display: false } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+// ── 主讲排行 ──
+function renderTeacherRanking() {
+  var container = document.getElementById('teacherRankList');
+  var mode = teacherRankMode;
+  var list = TEACHERS || [];
+
+  if (!list.length) { container.innerHTML = '<div class="empty-hint">暂无数据</div>'; return; }
+
+  container.innerHTML = list.slice(0, 10).map(function(t, idx) {
+    var medal = medalClass(idx);
+    var pillCls = SUBJECT_PILL_CLASS[t.subject] || '';
+    var pillText = SUBJECT_SHORT[t.subject] || '';
+    var rate = mode === 'renewal' ? t.renewal_rate : t.conv_rate;
+    var rc = rateColor(rate);
+    var active = t.active_pv || t.active_count || 0;
+    var renewed = t.renewed_pv || t.renewed_count || 0;
+    var shouldRenew = t.should_renew || (active - (t.pre_renewed_pv || 0));
+    var newRenewed = t.new_renewed_pv || t.new_renewed || 0;
+
+    var stats = mode === 'renewal'
+      ? '<span>在读 <strong>' + active + '</strong></span><span>已续 <strong>' + renewed + '</strong></span>'
+      : '<span>在读 <strong>' + active + '</strong></span><span>应续 <strong>' + shouldRenew + '</strong></span><span>转化 <strong>' + newRenewed + '</strong></span>';
+
+    return '<div class="rank-item">' +
+      '<div class="rank-num ' + medal + '">' + (idx + 1) + '</div>' +
+      '<div class="rank-info"><div class="rank-name"><span class="subj-pill ' + pillCls + '">' + pillText + '</span>' + t.name + '</div>' +
+      '<div class="rank-stats">' + stats + '</div></div>' +
+      '<div class="rank-rate ' + rc + '">' + rate + '%</div></div>';
+  }).join('');
+}
+
+// ── 顾问排行 ──
+function renderAdvisorRanking() {
+  var container = document.getElementById('advisorRankList');
+  var mode = advisorRankMode;
+  var isUV = advisorUVMode === 'uv';
+  var list = ADVISORS || [];
+
+  if (!list.length) { container.innerHTML = '<div class="empty-hint">暂无数据</div>'; return; }
+
+  container.innerHTML = list.slice(0, 10).map(function(a, idx) {
+    var medal = medalClass(idx);
+    var tag = getAdvisorTag(a.name);
+    var tagColor = a.tag_color || getAdvisorTagColor(a.name);
+    var tagPill = '<span class="adv-tag" style="background:' + tagColor + '">' + tag + '</span>';
+
+    var active = isUV ? a.active : (a.pv_active || a.active);
+    var total = isUV ? a.total_renewed : (a.pv_total_renewed || a.total_renewed);
+    var pre = isUV ? a.pre_renewed : (a.pv_pre_renewed || a.pre_renewed);
+    var newR = isUV ? a.new_renewed : (a.pv_new_renewed || a.new_renewed);
+    var should = active - pre;
+    var rate = mode === 'renewal' ? (active > 0 ? (total / active * 100).toFixed(1) : 0) : (should > 0 ? (newR / should * 100).toFixed(1) : 0);
+    var rc = rateColor(rate);
+
+    var dim = isUV ? 'UV' : 'PV';
+    var stats = mode === 'renewal'
+      ? '<span>' + dim + ' <strong>' + active + '</strong></span><span>已续 <strong>' + total + '</strong></span>'
+      : '<span>' + dim + ' <strong>' + active + '</strong></span><span>应续 <strong>' + should + '</strong></span><span>转化 <strong>' + newR + '</strong></span>';
+
+    return '<div class="rank-item">' +
+      '<div class="rank-num ' + medal + '">' + (idx + 1) + '</div>' +
+      '<div class="rank-info"><div class="rank-name">' + tagPill + ' ' + a.name + '</div>' +
+      '<div class="rank-stats">' + stats + '</div></div>' +
+      '<div class="rank-rate ' + rc + '">' + rate + '%</div></div>';
+  }).join('');
+}
+
+// ── 切换按钮 ──
+function switchTeacherMode(mode) {
+  teacherRankMode = mode;
+  document.querySelectorAll('#teacherRankTitle ~ .mode-toggle .mode-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  var titleSuffix = mode === 'renewal' ? '续报率排行' : '转化率排行';
+  document.getElementById('teacherRankTitle').textContent = '主讲' + titleSuffix;
+  renderTeacherRanking();
+}
+
+function switchAdvisorMode(mode) {
+  advisorRankMode = mode;
+  var btns = document.querySelectorAll('#advisorRankTitle ~ div .mode-toggle:first-child .mode-btn');
+  btns.forEach(function(btn) { btn.classList.toggle('active', btn.dataset.mode === mode); });
+  var titleSuffix = mode === 'renewal' ? '续报排行' : '转化排行';
+  document.getElementById('advisorRankTitle').textContent = '顾问' + titleSuffix;
+  renderAdvisorRanking();
+}
+
+function switchAdvisorUVMode(uvMode) {
+  advisorUVMode = uvMode;
+  var btns = document.querySelectorAll('#advisorRankTitle ~ div .mode-toggle:last-child .mode-btn');
+  btns.forEach(function(btn) { btn.classList.toggle('active', btn.dataset.uv === uvMode); });
+  renderAdvisorRanking();
+}
+
+// ── 初始化 ──
+renderKPIs();
+renderChart();
+renderTeacherRanking();
+renderAdvisorRanking();
+</script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+/* ═══════════════════════════════════════════════════════════════
+   UV Dashboard 2.0 — 矩阵表格组件（v4 专业版）
+   设计原则：数据层次清晰 · 合计与数据行风格统一 · 重点突出
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 外层容器 ── */
+.matrix-wrap {
+  overflow-x: auto;
+  padding: 2px;
+}
+
+/* ── 矩阵表格 ── */
+.matrix-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 13px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+/* ── 表头 ── */
+.matrix-table thead th {
+  background: var(--bg-subtle);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+  padding: 14px 16px;
+  border-bottom: 2px solid var(--border-default);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.matrix-table thead th .mc-period-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.matrix-table thead th .mc-period-date {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+}
+
+.matrix-table thead th .mc-period-note {
+  font-size: 9px;
+  color: var(--c-warning-text);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.matrix-table thead th.col-total {
+  background: var(--bg-muted);
+}
+
+.matrix-table thead th.col-total .mc-period-name {
+  color: var(--text-secondary);
+}
+
+/* ── 行标签（教学点）── */
+.matrix-table .row-label {
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  white-space: nowrap;
+  padding: 12px 18px;
+  min-width: 100px;
+  border-right: 2px solid var(--border-default);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+/* ── 数据单元格 ── */
+.matrix-table td {
+  border-bottom: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+  transition: background 0.15s var(--ease-smooth);
+}
+
+.matrix-table td:last-child {
+  border-right: none;
+}
+
+.matrix-table tbody tr:hover td {
+  background: var(--bg-hover);
+}
+
+.matrix-table tbody tr:hover .row-label {
+  background: var(--bg-hover);
+}
+
+/* ── 空单元格 ── */
+.matrix-cell.empty {
+  color: var(--text-disabled);
+  padding: 22px;
+  font-size: 13px;
+}
+
+/* ── 数据单元格内容 ── */
+.matrix-cell {
+  padding: 12px 14px;
+  min-width: 130px;
+  position: relative;
+}
+
+/* ── 顶部行：PV + 续报率 ── */
+.matrix-cell .mc-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* PV 大字 */
+.matrix-cell .mc-pv {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrix-cell .mc-pv .mc-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+
+/* 续报率徽章 */
+.matrix-cell .mc-rate {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.matrix-cell .mc-rate.high {
+  background: var(--c-success-bg);
+  color: var(--c-success-text);
+}
+
+.matrix-cell .mc-rate.mid {
+  background: var(--c-warning-bg);
+  color: var(--c-warning-text);
+}
+
+.matrix-cell .mc-rate.low {
+  background: var(--c-danger-bg);
+  color: var(--c-danger-text);
+}
+
+.matrix-cell .mc-rate.zero {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+/* ── 中间行：学科pills ── */
+.matrix-cell .mc-pills {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin: 5px 0;
+  line-height: 1.6;
+  min-height: 20px;
+  flex-wrap: wrap;
+}
+
+/* ── 底部行：UV + 班量 ── */
+.matrix-cell .mc-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.matrix-cell .mc-bottom .mc-uv {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.matrix-cell .mc-bottom .mc-uv b {
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrix-cell .mc-bottom .mc-sep {
+  color: var(--border-default);
+  font-size: 10px;
+}
+
+.matrix-cell .mc-bottom .mc-cls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.matrix-cell .mc-bottom .mc-cls b {
+  color: var(--c-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ 合计单元格（与数据行风格统一，背景微区分） ═══ */
+.matrix-table .total-cell {
+  background: var(--bg-muted);
+}
+
+.matrix-table .total-cell .mc-pv {
+  color: var(--text-primary);
+}
+
+.matrix-table .total-cell .mc-bottom .mc-cls b {
+  color: var(--text-secondary);
+}
+
+/* ═══ 合计行（底部总览，视觉加强） ═══ */
+.matrix-table .grand-row td {
+  background: var(--bg-subtle);
+  border-top: 2px solid var(--border-default);
+}
+
+.matrix-table .grand-row .row-label {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  font-weight: 800;
+  border-right: 2px solid var(--border-default);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.matrix-table .grand-row .total-cell {
+  background: var(--bg-subtle);
+}
+
+/* 合计行续报率badge稍大 */
+.matrix-table .grand-row .mc-rate {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+/* 合计行学科pills稍大 */
+.matrix-table .grand-row .subj-pill {
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+/* 合计行底部信息稍大 */
+.matrix-table .grand-row .mc-bottom {
+  font-size: 12px;
+}
+
+.matrix-table .grand-row:hover td {
+  background: var(--bg-subtle);
+}
+
+/* ── 图例 ── */
+.matrix-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--bg-subtle);
+  border-radius: var(--r-md);
+}
+
+.matrix-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.matrix-legend .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.matrix-legend .dot.math { background: var(--c-math); }
+.matrix-legend .dot.chinese { background: var(--c-chinese); }
+.matrix-legend .dot.english { background: var(--c-english); }
+.matrix-legend .dot.science { background: var(--c-science); }
+
+.matrix-legend .legend-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-light);
+}
+
+.matrix-legend .legend-rate {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.matrix-legend .legend-hint {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+}
+
+/* ── 季节标识头部 ── */
+.matrix-season-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 0 2px;
+}
+
+.season-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.season-badge.summer { background: linear-gradient(135deg, #FF8C42 0%, #FF6B35 100%); }
+.season-badge.winter { background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); }
+.season-badge.spring  { background: linear-gradient(135deg, #7ED321 0%, #5CB85C 100%); }
+.season-badge.autumn  { background: linear-gradient(135deg, #F5A623 0%, #D48806 100%); }
+
+.matrix-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.4px;
+}

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在读 / 续费 / 退费 趋势图</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #3b82f6;
+      --renew: #10b981;
+      --refund: #ef4444;
+      --rate: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .chart-wrapper {
+      position: relative;
+      height: 420px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    td input {
+      width: 72px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text);
+    }
+    td input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .rate-cell {
+      font-weight: 600;
+      color: var(--rate);
+    }
+    .legend-inline {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+    .dot.line { border-radius: 50%; }
+    .actions {
+      margin-top: 16px;
+      text-align: right;
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>在读 / 续费 / 退费 趋势</h1>
+    <p class="subtitle">堆叠柱状图展示在读、续费、退费 PV，折线叠加展示续报率趋势。可直接编辑下方表格数据。</p>
+
+    <div class="card">
+      <div class="legend-inline">
+        <span class="legend-item"><span class="dot" style="background:#3b82f6"></span>在读 PV</span>
+        <span class="legend-item"><span class="dot" style="background:#10b981"></span>续费 PV</span>
+        <span class="legend-item"><span class="dot" style="background:#ef4444"></span>退费 PV</span>
+        <span class="legend-item"><span class="dot line" style="background:#f59e0b"></span>续报率（续费/在读）</span>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>在读 PV</th>
+            <th>续费 PV</th>
+            <th>退费 PV</th>
+            <th>续报率</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="actions">
+        <button onclick="resetData()">恢复默认值</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 默认数据：基于截图中最后一天的可见数值（在读 299、续费 68、退费 37）
+    // 前面几天的数值按趋势平滑估算，可替换为真实表格数据
+    const defaultData = [
+      { date: '06-30', active: 300, renew: 18, refund: 8 },
+      { date: '07-01', active: 300, renew: 22, refund: 12 },
+      { date: '07-02', active: 300, renew: 26, refund: 16 },
+      { date: '07-03', active: 300, renew: 32, refund: 20 },
+      { date: '07-04', active: 299, renew: 42, refund: 26 },
+      { date: '07-05', active: 299, renew: 55, refund: 32 },
+      { date: '07-06', active: 299, renew: 68, refund: 37 }
+    ];
+
+    let chartData = JSON.parse(JSON.stringify(defaultData));
+    let chart;
+
+    function rate(row) {
+      return row.active ? (row.renew / row.active * 100).toFixed(1) : '0.0';
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#dataTable tbody');
+      tbody.innerHTML = '';
+      chartData.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.date}</td>
+          <td><input type="number" min="0" value="${row.active}" data-idx="${idx}" data-key="active"></td>
+          <td><input type="number" min="0" value="${row.renew}" data-idx="${idx}" data-key="renew"></td>
+          <td><input type="number" min="0" value="${row.refund}" data-idx="${idx}" data-key="refund"></td>
+          <td class="rate-cell">${rate(row)}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const idx = +e.target.dataset.idx;
+          const key = e.target.dataset.key;
+          chartData[idx][key] = parseInt(e.target.value, 10) || 0;
+          e.target.closest('tr').querySelector('.rate-cell').textContent = rate(chartData[idx]) + '%';
+          updateChart();
+        });
+      });
+    }
+
+    function updateChart() {
+      const labels = chartData.map(d => d.date);
+      const active = chartData.map(d => d.active);
+      const renew = chartData.map(d => d.renew);
+      const refund = chartData.map(d => d.refund);
+      const rates = chartData.map(d => (d.active ? d.renew / d.active * 100 : 0));
+
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = active;
+      chart.data.datasets[1].data = renew;
+      chart.data.datasets[2].data = refund;
+      chart.data.datasets[3].data = rates;
+      chart.update();
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      const labels = chartData.map(d => d.date);
+      const active = chartData.map(d => d.active);
+      const renew = chartData.map(d => d.renew);
+      const refund = chartData.map(d => d.refund);
+      const rates = chartData.map(d => d.active ? d.renew / d.active * 100 : 0);
+
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '在读 PV',
+              data: active,
+              backgroundColor: 'rgba(59, 130, 246, 0.85)',
+              borderColor: '#3b82f6',
+              borderWidth: 1,
+              order: 2,
+              stack: 'stack1'
+            },
+            {
+              label: '续费 PV',
+              data: renew,
+              backgroundColor: 'rgba(16, 185, 129, 0.85)',
+              borderColor: '#10b981',
+              borderWidth: 1,
+              order: 2,
+              stack: 'stack1'
+            },
+            {
+              label: '退费 PV',
+              data: refund,
+              backgroundColor: 'rgba(239, 68, 68, 0.85)',
+              borderColor: '#ef4444',
+              borderWidth: 1,
+              order: 2,
+              stack: 'stack1'
+            },
+            {
+              label: '续报率',
+              data: rates,
+              type: 'line',
+              borderColor: '#f59e0b',
+              backgroundColor: '#f59e0b',
+              borderWidth: 3,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              pointBackgroundColor: '#fff',
+              pointBorderWidth: 2,
+              yAxisID: 'y1',
+              order: 1,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { usePointStyle: true, padding: 20 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) label += ': ';
+                  if (context.dataset.label === '续报率') {
+                    label += context.parsed.y.toFixed(1) + '%';
+                  } else {
+                    label += context.parsed.y;
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              stacked: true
+            },
+            y: {
+              beginAtZero: true,
+              stacked: true,
+              title: { display: true, text: '人数 / PV' },
+              grid: { color: '#f3f4f6' }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              beginAtZero: true,
+              max: 100,
+              title: { display: true, text: '续报率 %' },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function resetData() {
+      chartData = JSON.parse(JSON.stringify(defaultData));
+      renderTable();
+      updateChart();
+    }
+
+    renderTable();
+    initChart();
+  </script>
+</body>
+</html>

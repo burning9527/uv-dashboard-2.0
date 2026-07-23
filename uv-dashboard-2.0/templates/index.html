@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UV台帐管理系统 2.0</title>
+  <!-- CSS -->
+  <link rel="stylesheet" href="/static/css/uv-base.css?v=20260720a">
+  <link rel="stylesheet" href="/static/css/uv-components.css?v=20260717c">
+  <link rel="stylesheet" href="/static/css/uv-matrix.css?v=20260717c">
+  <link rel="stylesheet" href="/static/css/uv-charts.css?v=20260717c">
+  <!-- Chart.js UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- 防遮挡数据标签插件 -->
+  <script src="/static/js/uv-chart-labels.js?v=20260717g"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- ── Header ── -->
+  <div class="header">
+    <div class="header-left">
+      <h1>UV台帐管理系统 <span class="version-badge">2.0</span></h1>
+    </div>
+    <div class="header-meta">
+      <span class="time" id="run-time"></span>
+      <span id="run-pin-badge" class="pin-badge" style="display:none"></span>
+      <button class="btn btn-sm" onclick="loadDashboard()" title="重新加载看板数据">刷新</button>
+      <button class="btn btn-sm btn-primary" onclick="openCalibrate()">重新校准</button>
+    </div>
+  </div>
+
+  <!-- ── 全局筛选栏（14项：第一排7固定不联动 + 第二排7联动）── -->
+  <div class="global-filter-bar" id="global-filter-bar">
+    <!-- 第一排：7 项固定不联动，始终展示全量值 -->
+    <div class="gf-primary">
+      <div class="sf-group"><span class="sf-label">年份</span><div class="multi-select" id="ms-g-year" onclick="UVFilters.toggleMultiSelect('ms-g-year')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">分校</span><div class="multi-select" id="ms-g-branch" onclick="UVFilters.toggleMultiSelect('ms-g-branch')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">学季</span><div class="multi-select" id="ms-g-season" onclick="UVFilters.toggleMultiSelect('ms-g-season')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">年级</span><div class="multi-select" id="ms-g-grade" onclick="UVFilters.toggleMultiSelect('ms-g-grade')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">学科</span><div class="multi-select" id="ms-g-subject" onclick="UVFilters.toggleMultiSelect('ms-g-subject')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">课程类型</span><div class="multi-select" id="ms-g-course_type" onclick="UVFilters.toggleMultiSelect('ms-g-course_type')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">产品类型</span><div class="multi-select" id="ms-g-class_mode" onclick="UVFilters.toggleMultiSelect('ms-g-class_mode')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group gf-actions">
+        <button class="btn btn-sm gf-query-btn" onclick="refreshAll()">查询</button>
+        <button class="btn btn-sm gf-more-btn" id="gf-more-btn" onclick="toggleMoreFilters()">更多筛选 <span class="mf-arrow">▾</span></button>
+        <button class="btn btn-sm tf-btn-reset" onclick="UVFilters.resetGlobalFilters()">重置</button>
+      </div>
+    </div>
+    <!-- 第二排：7 项联动收窄（仅展示有值的可筛选项） -->
+    <div class="gf-secondary gf-collapsed" id="gf-secondary">
+      <div class="sf-group"><span class="sf-label">期次</span><div class="multi-select" id="ms-g-period" onclick="UVFilters.toggleMultiSelect('ms-g-period')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">教学点</span><div class="multi-select" id="ms-g-tp" onclick="UVFilters.toggleMultiSelect('ms-g-tp')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">主讲</span><div class="multi-select" id="ms-g-teacher" onclick="UVFilters.toggleMultiSelect('ms-g-teacher')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">班型</span><div class="multi-select" id="ms-g-class_type" onclick="UVFilters.toggleMultiSelect('ms-g-class_type')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">在读状态</span><div class="multi-select" id="ms-g-enrollment" onclick="UVFilters.toggleMultiSelect('ms-g-enrollment')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">续报状态</span><div class="multi-select" id="ms-g-renewal" onclick="UVFilters.toggleMultiSelect('ms-g-renewal')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+      <div class="sf-group"><span class="sf-label">学员归属</span><div class="multi-select" id="ms-g-student_type" onclick="UVFilters.toggleMultiSelect('ms-g-student_type')"><span class="ms-text">全部</span><div class="ms-dropdown"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── Main Tabs (4 Tab) ── -->
+  <div class="main-tabs">
+    <button class="main-tab active" data-tab="dashboard" onclick="switchMainTab('dashboard')">数据看板</button>
+    <button class="main-tab" data-tab="detail" onclick="switchMainTab('detail')">数据明细</button>
+    <button class="main-tab" data-tab="calibrate" onclick="switchMainTab('calibrate')">校准管理</button>
+    <button class="main-tab" data-tab="monitor" onclick="switchMainTab('monitor')">运行监控</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- Tab 1: 数据看板 — 一屏总览                           -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-dashboard" class="tab-content active">
+
+    <!-- ── KPI 统计卡片 ── -->
+    <div class="stats-grid" id="stats-top"></div>
+    <div class="stats-grid" id="stats-subject"></div>
+
+    <!-- ── 趋势图区 ── -->
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <h2>业务趋势</h2>
+        <div class="dash-section-actions">
+          <button class="btn btn-sm btn-share" onclick="UVTrends.generateShare()">生成分享</button>
+        </div>
+      </div>
+      <div class="dash-charts-row single-chart">
+        <div class="panel chart-wide">
+          <div class="panel-title">业务趋势 · 在读/退费/续费堆叠 + 续报率</div>
+          <div class="chart-legend-row" id="chart-main-legend"></div>
+          <div class="chart-container wide"><canvas id="chart-main-trend"></canvas></div>
+        </div>
+      </div>
+      <!-- ── 拉新×续报转化月度视窗 ── -->
+      <div class="dash-charts-row single-chart" style="margin-top:14px">
+        <div class="panel chart-wide">
+          <div class="acq-header">
+            <div class="panel-title" id="acq-chart-title">拉新×续报转化 · 月度分析</div>
+            <div class="acq-controls">
+              <div class="acq-toggle-group" id="acq-mode-btns">
+                <button class="acq-toggle-btn active" data-mode="uv" onclick="UVTrends.switchAcqMode('uv')">UV 学员</button>
+                <button class="acq-toggle-btn" data-mode="pv" onclick="UVTrends.switchAcqMode('pv')">PV 科目</button>
+              </div>
+              <div class="acq-month-chips" id="acq-month-chips">
+                <span class="acq-chip active" data-month="" onclick="UVTrends.switchAcqMonth('')">全部</span>
+                <span class="acq-chip" data-month="03月" onclick="UVTrends.switchAcqMonth('03月')">3月</span>
+                <span class="acq-chip" data-month="04月" onclick="UVTrends.switchAcqMonth('04月')">4月</span>
+                <span class="acq-chip" data-month="05月" onclick="UVTrends.switchAcqMonth('05月')">5月</span>
+                <span class="acq-chip" data-month="06月" onclick="UVTrends.switchAcqMonth('06月')">6月</span>
+                <span class="acq-chip" data-month="07月" onclick="UVTrends.switchAcqMonth('07月')">7月</span>
+              </div>
+            </div>
+          </div>
+          <div class="chart-legend-row" id="acq-legend"></div>
+          <div class="chart-container wide"><canvas id="chart-acquisition-trend"></canvas></div>
+          <div class="acq-hint" id="acq-hint" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 数据洞察区 ── -->
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <h2>数据洞察</h2>
+        <div class="dash-section-actions">
+          <span style="font-size:12px;color:var(--text-muted)">学科构成 · 教学点分布 · 拉新渠道转化</span>
+        </div>
+      </div>
+      <div class="dash-charts-row">
+        <div class="panel">
+          <div class="panel-title">学科在读构成</div>
+          <div class="chart-container" style="height:300px"><canvas id="chart-subject-doughnut"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">教学点 UV 分布</div>
+          <div class="chart-container" style="height:300px"><canvas id="chart-point-bar"></canvas></div>
+        </div>
+      </div>
+      <!-- 拉新渠道×转化效率（柱状堆叠+续报折线） -->
+      <div class="dash-charts-row single-chart" style="margin-top:14px">
+        <div class="panel chart-wide">
+          <div class="acq-header">
+            <div class="panel-title">拉新渠道 × 转化效率</div>
+            <div class="acq-controls">
+              <div class="acq-toggle-group" id="channel-level-btns">
+                <button class="acq-toggle-btn active" data-level="l1" onclick="UVTrends.switchChannelLevel('l1')">一级渠道</button>
+                <button class="acq-toggle-btn" data-level="l2" onclick="UVTrends.switchChannelLevel('l2')">二级渠道</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-legend-row" id="channel-legend"></div>
+          <div class="chart-container wide" style="height:360px"><canvas id="chart-channel"></canvas></div>
+          <div class="acq-hint" id="channel-hint" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 排行区 ── -->
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <h2>人员排行</h2>
+        <div class="dash-section-actions">
+          <button class="btn btn-sm btn-share" onclick="openShareCard()">分享卡片</button>
+        </div>
+      </div>
+      <div class="ranking-grid">
+        <!-- 主讲排行 -->
+        <div class="rank-card">
+          <h3>主讲排行
+            <div class="rank-btn-group" id="trends-teacher-btns">
+              <span class="rank-btn active" data-mode="renewal" onclick="UVTrends.switchTeacherMode('renewal')">续报率</span>
+              <span class="rank-btn" data-mode="conversion" onclick="UVTrends.switchTeacherMode('conversion')">转化率</span>
+            </div>
+          </h3>
+          <div class="rank-list" id="trends-teacher-ranking"></div>
+        </div>
+        <!-- 顾问排行 -->
+        <div class="rank-card">
+          <h3>顾问排行
+            <div style="display:flex;gap:6px">
+              <div class="rank-btn-group" id="trends-advisor-btns">
+                <span class="rank-btn active" data-mode="renewal" onclick="UVTrends.switchAdvisorMode('renewal')">续报率</span>
+                <span class="rank-btn" data-mode="conversion" onclick="UVTrends.switchAdvisorMode('conversion')">转化率</span>
+              </div>
+              <div class="uv-btn-group" id="trends-advisor-uv-btns">
+                <span class="uv-btn active" data-mode="uv" onclick="UVTrends.switchAdvisorUVMode('uv')">UV</span>
+                <span class="uv-btn" data-mode="pv" onclick="UVTrends.switchAdvisorUVMode('pv')">PV</span>
+              </div>
+            </div>
+          </h3>
+          <div class="rank-list" id="trends-advisor-ranking"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- Tab 2: 数据明细 — 5个子Tab                           -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-detail" class="tab-content">
+    <!-- ── Sub Tabs ── -->
+    <div class="sub-tabs">
+      <button class="sub-tab active" data-subtab="matrix" onclick="switchSubTab('matrix')">期次矩阵</button>
+      <button class="sub-tab" data-subtab="schedule" onclick="switchSubTab('schedule')">排班看板</button>
+      <button class="sub-tab" data-subtab="teacher" onclick="switchSubTab('teacher')">主讲看板</button>
+      <button class="sub-tab" data-subtab="advisor" onclick="switchSubTab('advisor')">顾问看板</button>
+      <button class="sub-tab" data-subtab="student" onclick="switchSubTab('student')">学员检索</button>
+    </div>
+
+    <!-- ── Sub: 矩阵 ── -->
+    <div id="sub-matrix" class="tab-content active">
+      <div class="panel">
+        <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>学期矩阵</span>
+          <button class="btn btn-sm tf-btn-export" onclick="UVExport.exportMatrix()">导出</button>
+        </div>
+        <div id="matrix-content" class="matrix-wrap"></div>
+      </div>
+    </div>
+
+    <!-- ── Sub: 排班 ── -->
+    <div id="sub-schedule" class="tab-content">
+      <div class="panel">
+        <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>排班看板</span>
+          <button class="btn btn-sm tf-btn-export" onclick="UVExport.exportSchedule()">导出</button>
+        </div>
+        <div id="schedule-content"></div>
+      </div>
+    </div>
+
+    <!-- ── Sub: 学员检索 ── -->
+    <div id="sub-student" class="tab-content">
+      <div class="panel">
+        <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>学员列表</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="sf-search-wrap" style="flex:1;min-width:180px">
+              <input type="text" id="student-keyword" class="sf-search-input" placeholder="姓名 / 学生ID / 班级ID">
+            </div>
+            <button class="btn btn-sm tf-btn-query" id="student-search-btn">搜索</button>
+            <button class="btn btn-sm tf-btn-export" onclick="UVExport.exportStudents()">导出</button>
+          </div>
+        </div>
+        <div id="student-table-content"></div>
+      </div>
+    </div>
+
+    <!-- ── Sub: 主讲看板 ── -->
+    <div id="sub-teacher" class="tab-content">
+      <div class="board-layout">
+        <aside class="board-sidebar">
+          <div class="board-sidebar-head">
+            <h3 class="board-sidebar-title">主讲排名</h3>
+            <div class="rank-btn-group" id="teacher-rank-btns">
+              <button class="rank-btn active" data-mode="renewal" onclick="UVTeacher.switchMode('renewal')">续报率</button>
+              <button class="rank-btn" data-mode="conv" onclick="UVTeacher.switchMode('conv')">转化率</button>
+            </div>
+          </div>
+          <div id="teacher-list-content" class="board-list"></div>
+        </aside>
+        <section class="board-detail" id="teacher-detail-content"></section>
+      </div>
+    </div>
+
+    <!-- ── Sub: 顾问看板 ── -->
+    <div id="sub-advisor" class="tab-content">
+      <div class="board-layout">
+        <aside class="board-sidebar">
+          <div class="board-sidebar-head">
+            <h3 class="board-sidebar-title">顾问排名</h3>
+            <div class="board-sidebar-toggles">
+              <div class="rank-btn-group" id="advisor-rank-btns">
+                <button class="rank-btn active" data-mode="renewal" onclick="UVAdvisor.switchRankMode('renewal')">续报率</button>
+                <button class="rank-btn" data-mode="conv" onclick="UVAdvisor.switchRankMode('conv')">转化率</button>
+              </div>
+              <div class="uv-btn-group" id="advisor-uv-btns">
+                <button class="uv-btn active" data-mode="uv" onclick="UVAdvisor.switchUVMode('uv')">UV</button>
+                <button class="uv-btn" data-mode="pv" onclick="UVAdvisor.switchUVMode('pv')">PV</button>
+              </div>
+            </div>
+          </div>
+          <div id="advisor-list-content" class="board-list"></div>
+        </aside>
+        <section class="board-detail" id="advisor-detail-content"></section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- Tab 3: 校准管理                                      -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-calibrate" class="tab-content">
+    <div class="panel">
+      <div class="panel-title">校准上传</div>
+      <p class="calibrate-hint">上传招生明细和原台帐文件，执行校准对比</p>
+      <div class="upload-grid">
+        <label class="upload-zone required" id="zone-enrollment">
+          <span class="uz-icon">📊</span>
+          <span class="uz-label">招生明细</span>
+          <span class="uz-hint">点击或拖拽上传 .xlsx / .xls</span>
+          <span class="uz-req">全量订单表 · 必传</span>
+          <span class="uz-file"></span>
+          <input type="file" id="cal-enrollment" accept=".xlsx,.xls" onchange="onFileChange(this)">
+        </label>
+        <label class="upload-zone required" id="zone-ledger">
+          <span class="uz-icon">📋</span>
+          <span class="uz-label">原UV台帐底表</span>
+          <span class="uz-hint">点击或拖拽上传 .xlsx / .xls</span>
+          <span class="uz-req">底表文件 · 必传</span>
+          <span class="uz-file"></span>
+          <input type="file" id="cal-ledger" accept=".xlsx,.xls" onchange="onFileChange(this)">
+        </label>
+        <label class="upload-zone" id="zone-fall">
+          <span class="uz-icon">🍂</span>
+          <span class="uz-label">秋季续费订单</span>
+          <span class="uz-hint">点击或拖拽上传 .xlsx / .xls</span>
+          <span class="uz-req" style="color:var(--text-muted)">可选</span>
+          <span class="uz-file"></span>
+          <input type="file" id="cal-fall" accept=".xlsx,.xls" onchange="onFileChange(this)">
+        </label>
+      </div>
+      <button class="btn btn-primary" style="padding:12px 40px;font-size:15px;border-radius:8px" onclick="handleCalibrate()">🚀 开始校准</button>
+      <div id="calibrate-result" class="calibrate-result-area"></div>
+    </div>
+
+    <!-- 全量数据上传 -->
+    <div class="panel">
+      <div class="panel-title">全量数据上传 <span class="badge badge-full">昨日快照 · 合并基线</span></div>
+      <p class="calibrate-hint">上传全量订单明细表（各分校独立表可多选）。作为合并基线，与「校准管理」中的实时数据按学员 uid 合并：<b>校准优先、全量兜底</b>。</p>
+      <div class="upload-grid">
+        <label class="upload-zone" id="zone-full">
+          <span class="uz-icon">📦</span>
+          <span class="uz-label">全量订单明细</span>
+          <span class="uz-hint">点击或拖拽上传 .xlsx / .xls（可多选分校表）</span>
+          <span class="uz-req" style="color:var(--text-muted)">多文件 · 昨日数据</span>
+          <span class="uz-file"></span>
+          <input type="file" id="full-files" accept=".xlsx,.xls" multiple onchange="onFullFilesChange(this)">
+        </label>
+      </div>
+      <button class="btn btn-primary" style="padding:12px 40px;font-size:15px;border-radius:8px" onclick="handleFullUpload()">⬆ 上传全量数据并合并</button>
+      <div id="full-upload-result" class="calibrate-result-area"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- Tab 4: 运行监控                                      -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="tab-monitor" class="tab-content">
+    <div class="panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <span>校准运行记录</span>
+        <button class="btn btn-sm btn-outline" onclick="handleRebuild()">🔀 重新合并（全量 + 校准）</button>
+      </div>
+      <div id="monitor-runs-table"></div>
+    </div>
+  </div>
+
+  <!-- ── 学员详情弹窗 ── -->
+  <div class="modal-overlay" id="student-modal" onclick="UVModal.closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="modal-close" onclick="UVModal.closeModal()">✕</span>
+      <div id="student-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- ── 班级详情弹窗 ── -->
+  <div class="modal-overlay" id="class-modal" onclick="UVModal.closeClassModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="modal-close" onclick="UVModal.closeClassModal()">✕</span>
+      <div id="class-modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 分享卡片模态面板 -->
+<div id="shareOverlay">
+  <div class="share-modal">
+    <div class="share-modal-header">
+      <div class="share-modal-title">分享卡片</div>
+      <div class="share-modal-actions">
+        <button id="shareDownloadBtn" class="btn btn-sm btn-primary" onclick="downloadShareCard()">下载图片</button>
+        <span class="share-close" onclick="closeShareCard()">✕</span>
+      </div>
+    </div>
+    <div class="share-modal-body">
+      <div id="shareFilters"></div>
+      <div id="shareCardPreview"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── JS Modules ── -->
+<script src="/static/js/uv-config.js?v=20260717d"></script>
+<script src="/static/js/uv-api.js?v=20260717d"></script>
+<script src="/static/js/uv-filters.js?v=20260720a"></script>
+<script src="/static/js/uv-stats.js?v=20260717c"></script>
+<script src="/static/js/uv-matrix.js?v=20260716z"></script>
+<script src="/static/js/uv-teacher.js?v=20260716z"></script>
+<script src="/static/js/uv-advisor.js?v=20260716z"></script>
+<script src="/static/js/uv-trends.js?v=20260720b"></script>
+<script src="/static/js/uv-student.js?v=20260720a"></script>
+<script src="/static/js/uv-modal.js?v=20260720a"></script>
+<script src="/static/js/uv-share-card.js?v=20260716z"></script>
+<script src="/static/js/uv-export.js?v=20260716z"></script>
+<script src="/static/js/uv-app.js?v=20260720a"></script>
+</body>
+</html>

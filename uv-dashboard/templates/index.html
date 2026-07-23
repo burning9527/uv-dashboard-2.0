@@ -1,0 +1,4067 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UV台帐管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f6fa;color:#2c3e50;min-height:100vh}
+a{color:#1a73e8;text-decoration:none}
+
+/* ── Layout ── */
+.app{max-width:1360px;margin:0 auto;padding:16px 20px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0}
+.header h1{font-size:22px;font-weight:700;color:#1a1a2e}
+.header .time{font-size:13px;color:#999}
+
+/* ── Main Tabs ── */
+.main-tabs{display:flex;gap:0;margin-bottom:20px;background:#fff;border-radius:10px;padding:4px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.main-tab{padding:10px 28px;border-radius:7px;cursor:pointer;font-size:14px;font-weight:500;color:#666;transition:all .2s;user-select:none;border:none;background:transparent}
+.main-tab:hover{color:#1a73e8;background:#f0f4ff}
+.main-tab.active{background:#1a73e8;color:#fff}
+
+/* ── Panel ── */
+.panel{background:#fff;border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.panel-title{font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee}
+.panel-title .sub{font-size:12px;color:#999;font-weight:400;margin-left:6px}
+
+/* ── Stats Cards ── */
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #E8E9F0;transition:all .15s}
+.stat-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);border-color:#D8DAE5}
+.stat-card .label{font-size:12px;color:#6C7293;margin-bottom:6px;font-weight:500}
+.stat-card .value{font-size:26px;font-weight:700;color:#2D3142}
+.stat-card .hint{font-size:11px;color:#aaa;margin-top:4px}
+
+/* side-hints: vertical layout — main value is hero, period strip is subtle footer */
+.stat-card.side-hints{display:flex;flex-direction:column;padding:14px 16px;min-height:auto;gap:0}
+.stat-card.side-hints .stat-main{flex:0 0 auto}
+.stat-card.side-hints .label{margin-bottom:4px;font-size:11.5px}
+.stat-card.side-hints .value{font-size:28px;line-height:1.15}
+.stat-card.side-hints .hint{margin:10px 0 0;display:flex;flex-direction:row;justify-content:space-between;gap:0;font-size:10px;color:#A0A3BD;line-height:1;border-top:1px solid #F0F1F5;padding-top:8px}
+.stat-card.side-hints .hint .period-row{white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+.stat-card.side-hints .hint .period-row .period-label{font-size:9.5px;font-weight:600;letter-spacing:0.5px;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1.5px solid transparent}
+.stat-card.side-hints .hint .period-row.current .period-label{border-color:#15803D;background:#15803D;color:#fff;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
+.stat-card.side-hints .hint .period-row.current .period-val{color:#15803D;font-weight:600}
+.stat-card.side-hints .hint .p0 .period-label{color:#B5B8C4}
+.stat-card.side-hints .hint .p1 .period-label{color:#B5B8C4}
+.stat-card.side-hints .hint .p2 .period-label{color:#B5B8C4}
+.stat-card.side-hints .hint .p3 .period-label{color:#B5B8C4}
+.stat-card.side-hints .hint .period-row .period-val{font-size:11px;color:#6C7293;font-weight:500}
+.stat-card.accent-blue .value{color:#378ADD}
+.stat-card.accent-green .value{color:#1D9E75}
+.stat-card.accent-red .value{color:#E8505B}
+.stat-card.accent-orange .value{color:#E8943B}
+.stat-card.accent-purple .value{color:#8B5CF6}
+
+/* ── Sub Tabs ── */
+.sub-tabs{display:flex;gap:6px;margin-bottom:16px}
+.sub-tab{padding:7px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;color:#888;border:1px solid #e8e8e8;background:#fff;transition:all .15s;user-select:none}
+.sub-tab:hover{color:#1a73e8;border-color:#1a73e8}
+.sub-tab.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+
+/* ── Subject Pills ── */
+.subj-pill{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;color:#fff;margin-right:3px}
+.subj-pill.sx{background:#1a73e8}  /* 数 / 雪球思维 */
+.subj-pill.yd{background:#389e0d}  /* 语 / 悦读创作 */
+.subj-pill.sy{background:#f57c00}  /* 英 / 双语素养 */
+
+/* ── Renewal Badge ── */
+.badge-renew{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.badge-renew.high{background:#dcfce7;color:#166534}
+.badge-renew.mid{background:#fef9c3;color:#854d0e}
+.badge-renew.low{background:#fee2e2;color:#991b1b}
+
+/* ══════ 1. Matrix ══════ */
+.matrix-wrap{overflow-x:auto}
+.matrix-table{border-collapse:collapse;width:100%;font-size:13px}
+.matrix-table th,.matrix-table td{border:1px solid #e5e7eb;padding:8px 10px;text-align:center;vertical-align:middle}
+.matrix-table thead th{background:#f8f9fb;font-weight:600;color:#555;font-size:12px;white-space:nowrap}
+.matrix-table .row-label{text-align:left;font-weight:600;color:#444;background:#fafafa;white-space:nowrap;min-width:80px}
+.matrix-table tbody tr:hover td{background:#fafbff}
+.matrix-table .total-row td{background:#f3f4f6;font-weight:600}
+.matrix-table .grand-row td{background:#e8eaed;font-weight:700}
+
+.matrix-cell{padding:4px 0}
+.matrix-cell .mc-main{font-size:18px;font-weight:700;color:#1a1a2e;line-height:1.4}
+.matrix-cell .mc-pills{margin:3px 0;line-height:1.8}
+.matrix-cell .mc-meta{font-size:11px;color:#888;line-height:1.6}
+.matrix-cell .mc-meta span{margin:0 3px}
+.matrix-cell.chill{color:#aaa}
+
+.matrix-legend{display:flex;gap:18px;font-size:11px;color:#999;margin-top:10px;align-items:center}
+.matrix-legend .dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.matrix-legend .dot.blue{background:#1a73e8}
+.matrix-legend .dot.green{background:#389e0d}
+.matrix-legend .dot.orange{background:#f57c00}
+
+/* ══════ 2. Schedule ══════ */
+.pt-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.pt-tab{padding:6px 16px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;color:#888;border:1px solid #e0e0e0;background:#fff;transition:all .15s;user-select:none}
+.pt-tab:hover{color:#1a73e8;border-color:#1a73e8}
+.pt-tab.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+
+.period-chips{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.period-chip{padding:4px 14px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:500;color:#888;border:1px solid #ddd;background:#fff;transition:all .15s;user-select:none}
+.period-chip:hover{color:#1a73e8;border-color:#1a73e8}
+.period-chip.active{background:#e8f0fe;color:#1a73e8;border-color:#1a73e8;font-weight:600}
+
+.class-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.class-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:14px 16px;transition:box-shadow .15s}
+.class-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.08)}
+.class-card .cls-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.class-card .cls-subj{display:inline-block;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;letter-spacing:.5px}
+.class-card .cls-subj.sx{background:#1a73e8}
+.class-card .cls-subj.yd{background:#389e0d}
+.class-card .cls-subj.sy{background:#f57c00}
+.class-card .cls-id{font-size:12px;color:#aaa;font-weight:500}
+.class-card .cls-row{font-size:12px;color:#666;line-height:1.8}
+.class-card .cls-row .sep{margin:0 6px;color:#ddd}
+.class-card .cls-foot{display:flex;gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f5;font-size:12px;color:#888}
+.class-card .cls-foot strong{color:#1a1a2e;font-size:16px}
+.class-card .cls-foot .renew-num{color:#389e0d}
+
+.student-tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}
+.student-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;background:#f0f4ff;color:#1a73e8;transition:all .15s;border:1px solid transparent;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.student-tag:hover{background:#dbeafe;border-color:#1a73e8}
+.student-tag.more{background:#f5f5f5;color:#999;cursor:pointer}
+.student-tag.more:hover{color:#1a73e8;background:#f0f4ff}
+.student-tag.renewed{background:#e6f7e6;color:#389e0d;border:1px solid #b7eb8f}.student-tag.renewed:hover{background:#d9f7be;border-color:#389e0d}
+
+/* ══════ 3. Teacher ══════ */
+.teacher-layout{display:grid;grid-template-columns:260px 1fr;gap:16px;min-height:400px}
+.teacher-list{border:1px solid #e8e8e8;border-radius:8px;overflow-y:auto;max-height:500px}
+.teacher-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;transition:background .15s}
+.teacher-item:hover{background:#fafbff}
+.teacher-item.active{background:#e8f0ff;border-left:3px solid #1a73e8}
+.teacher-item .tch-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.teacher-item .tch-name{font-weight:600;font-size:13px;color:#1a1a2e}
+.teacher-item .tch-rate{font-size:11px;font-weight:600}
+.teacher-item .tch-rate-bar{height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin-bottom:8px}
+.teacher-item .tch-rate-bar .tch-rate-fill{height:100%;border-radius:2px;transition:width .35s ease}
+.teacher-item .tch-rate-bar .tch-rate-fill.high{background:linear-gradient(90deg,#86efac,#22c55e)}
+.teacher-item .tch-rate-bar .tch-rate-fill.mid{background:linear-gradient(90deg,#fde68a,#f59e0b)}
+.teacher-item .tch-rate-bar .tch-rate-fill.low{background:linear-gradient(90deg,#fca5a5,#ef4444)}
+
+/* ── Unified rank stat row (shared by teacher + advisor) ── */
+.rank-stat-row{display:flex;align-items:stretch;margin-bottom:0}
+.rank-stat-cell{flex:1;text-align:center;padding:0 2px}
+.rank-stat-cell+.rank-stat-cell{border-left:1px solid #f0f0f0}
+.rank-stat-cell .rs-label{font-size:10px;color:#A0A3BD;font-weight:500;letter-spacing:.3px;margin-bottom:3px;white-space:nowrap}
+.rank-stat-cell .rs-val{font-size:16px;font-weight:700;line-height:1;color:#2D3142}
+.rank-stat-cell .rs-val.accent{color:#1D9E75}
+
+/* ── Subject pill inline ── */
+.tch-subj-inline{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
+.tch-subj-pill{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:18px;padding:0 5px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;letter-spacing:.5px}
+
+/* ── Rank mode toggle ── */
+.rank-toggle{display:inline-flex;background:#f0f1f5;border-radius:8px;padding:2px;gap:2px}
+.rank-toggle-btn{
+  padding:5px 14px;font-size:11px;border-radius:6px;border:none;cursor:pointer;
+  background:transparent;color:#888;font-weight:500;transition:all .2s;white-space:nowrap
+}
+.rank-toggle-btn.active{background:#378ADD;color:#fff;font-weight:600;box-shadow:0 1px 3px rgba(55,138,221,.25)}
+.rank-toggle-btn:hover:not(.active){color:#555;background:#e8e9f0}
+
+/* ── Ranking Grid (trends section) ── */
+.ranking-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rank-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #E8E9F0}
+.rank-card h3{font-size:14px;font-weight:600;color:#1a1a2e;margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px}
+.rank-list{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto}
+.rank-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 12px;border-radius:8px;
+  background:#fafbfc;border:1px solid #f0f0f0;
+  transition:all .18s
+}
+.rank-item:hover{background:#f5f7ff;border-color:#dbeafe}
+.rank-num{
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;flex-shrink:0;
+  background:#f0f1f5;color:#6C7293
+}
+.rank-num.gold{background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.3)}
+.rank-num.silver{background:linear-gradient(135deg,#94A3B8,#64748B);color:#fff}
+.rank-num.bronze{background:linear-gradient(135deg,#D97706,#B45309);color:#fff}
+.rank-info{flex:1;min-width:0}
+.rank-name{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.rank-bar-wrap{height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin-bottom:4px}
+.rank-bar-fill{height:100%;border-radius:2px;transition:width .45s ease}
+.rank-bar-fill.high{background:linear-gradient(90deg,#86efac,#22c55e)}
+.rank-bar-fill.mid{background:linear-gradient(90deg,#fde68a,#f59e0b)}
+.rank-bar-fill.low{background:linear-gradient(90deg,#fca5a5,#ef4444)}
+.rank-rate{
+  font-size:15px;font-weight:700;flex-shrink:0;
+  text-align:right;min-width:48px
+}
+.rank-rate.high{color:#22c55e}
+.rank-rate.mid{color:#f59e0b}
+.rank-rate.low{color:#ef4444}
+.empty-hint{text-align:center;color:#999;padding:20px;font-size:13px}
+
+.teacher-detail{border:1px solid #e8e8e8;border-radius:8px;padding:20px;min-height:300px}
+.teacher-detail .placeholder{color:#ccc;text-align:center;padding:60px 0;font-size:14px}
+.teacher-detail .tch-detail-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:#666;margin-bottom:16px}
+.teacher-detail .tch-detail-meta strong{color:#1a1a2e;font-size:18px}
+.teacher-detail .tch-detail-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:16px}
+
+.tch-class-card{background:#fafbfc;border:1px solid #eee;border-radius:8px;padding:12px 14px;cursor:pointer;transition:all .15s}
+.tch-class-card:hover{border-color:#d0d7e2;background:#fff}
+.tch-class-card .tcc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.tch-class-card .tcc-meta{font-size:11px;color:#888;line-height:1.7}
+.tch-class-card .tcc-foot{font-size:11px;color:#666;margin-top:6px}
+.tch-class-card .tcc-students{margin-top:8px;display:none;flex-wrap:wrap;gap:4px}
+.tch-class-card.expanded .tcc-students{display:flex}
+.tch-class-card .tcc-expand-hint{font-size:10px;color:#aaa;margin-top:4px}
+
+/* teacher student table */
+.teacher-student-table{width:100%;border-collapse:collapse;font-size:12px;background:#fff}
+.teacher-student-table th{text-align:left;padding:8px 10px;background:#f0f4f8;color:#445;font-weight:600;border-bottom:2px solid #d0d7e2;white-space:nowrap;position:sticky;top:0;z-index:1}
+.teacher-student-table td{padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+.teacher-student-table tbody tr:hover{background:#f6f9ff}
+.export-btn{padding:6px 16px;background:#4472C4;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s;font-weight:500}
+.export-btn:hover{background:#365fa0;transform:translateY(-1px);box-shadow:0 2px 6px rgba(68,114,196,.3)}
+.status-active{background:#e6f7e6;color:#389e0d;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.status-refund{background:#fff0f0;color:#e8453c;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.teacher-class-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.status-refund{background:#fde8e8;color:#e8453c;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+
+/* ── Teacher subject mini-pills ── */
+.tch-subj-inline{margin-left:0;margin-right:8px}
+.tch-subj-pill.sx{background:#1a73e8}
+.tch-subj-pill.yd{background:#389e0d}
+.tch-subj-pill.sy{background:#f57c00}
+
+/* ── Advisor teaching point tag (1-char abbreviation) ── */
+.tch-subj-pill.point-tian{background:#f5a623}
+.tch-subj-pill.point-tong{background:#1d9e75}
+.tch-subj-pill.point-bao{background:#378add}
+.tch-subj-pill.point-jiao{background:#6b7280}
+
+/* ── Class renewal rate bar ── */
+.cls-renew-bar{margin-top:8px;padding-top:8px;border-top:1px solid #f5f5f5}
+.cls-renew-bar-label{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#999;margin-bottom:4px}
+.cls-renew-bar-label .rate-text{font-size:12px;font-weight:700}
+.cls-renew-track{height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden}
+.cls-renew-fill{height:100%;border-radius:3px;transition:width .4s ease}
+
+/* ══════ 4. Advisor View ══════ */
+.advisor-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;transition:all .18s}
+.advisor-item:hover{background:#fafbff}
+.advisor-item.active{background:#f0f7ff;border-left:3px solid #1a73e8}
+.advisor-item .adv-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.advisor-item .adv-name{font-weight:600;font-size:13px;color:#1a1a2e}
+.advisor-item .adv-rate{font-size:11px;font-weight:600}
+.adv-rate-bar{height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin-bottom:8px}
+.adv-rate-bar .fill{height:100%;border-radius:2px;transition:width .4s ease}
+.adv-rate-bar .fill.high{background:linear-gradient(90deg,#86efac,#22c55e)}
+.adv-rate-bar .fill.mid{background:linear-gradient(90deg,#fde68a,#f59e0b)}
+.adv-rate-bar .fill.low{background:linear-gradient(90deg,#fca5a5,#ef4444)}
+
+/* Advisor detail — stat cards */
+.adv-detail-header{margin-bottom:16px}
+.adv-detail-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.adv-detail-title-row h3{font-size:17px;margin:0 0 6px}
+.adv-detail-desc{font-size:11px;color:#999;line-height:1.6}
+.adv-stat-cards{display:flex;gap:10px;flex-wrap:wrap}
+.adv-stat-card{flex:1;min-width:90px;background:#fff;border:1px solid #E8E9F0;border-radius:8px;padding:10px 14px;transition:all .15s}
+.adv-stat-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06);border-color:#D8DAE5}
+.adv-stat-card .asc-label{font-size:11px;color:#6C7293;font-weight:500;margin-bottom:5px;white-space:nowrap}
+.adv-stat-card .asc-value{font-size:22px;font-weight:700;line-height:1.1}
+.adv-stat-card.s-active .asc-value{color:#378ADD}
+.adv-stat-card.s-should .asc-value{color:#2D3142}
+.adv-stat-card.s-current .asc-value{color:#1D9E75}
+.adv-stat-card.s-total .asc-value{color:#8B5CF6}
+.adv-stat-card.s-rate .asc-value{color:#E8943B}
+
+.adv-renew-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.adv-renew-badge.new{background:#dcfce7;color:#166534}
+.adv-renew-badge.pre{background:#f0f0f0;color:#999}
+.adv-renew-badge.none{background:#fee2e2;color:#991b1b}
+.adv-student-table{width:100%;border-collapse:collapse;font-size:13px}
+.adv-student-table th{background:#f8f9fb;font-weight:600;color:#555;font-size:12px;padding:8px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid #e5e7eb}
+.adv-student-table td{padding:8px 10px;text-align:center;border-bottom:1px solid #f0f0f0;color:#444}
+.adv-student-table tbody tr:hover td{background:#fafbff}
+.adv-student-table .subj-mini{display:inline-block;width:18px;height:18px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;line-height:18px;text-align:center;margin:0 1px}
+.adv-student-table .subj-mini.sx{background:#1a73e8}
+.adv-student-table .subj-mini.yd{background:#389e0d}
+.adv-student-table .subj-mini.sy{background:#f57c00}
+.adv-student-table .subj-mini.inactive{opacity:0.25}
+.adv-student-table .clickable{color:#1a73e8;cursor:pointer;font-weight:500}
+.adv-student-table .clickable:hover{text-decoration:underline}
+
+/* ══════ 5. Student Search ══════ */
+.search-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-bar select,.search-bar input{padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;color:#444;background:#fff;transition:border-color .15s}
+.search-bar select:focus,.search-bar input:focus{outline:none;border-color:#1a73e8;box-shadow:0 0 0 2px rgba(26,115,232,.1)}
+.btn{padding:8px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1a73e8;color:#fff}
+.btn-primary:hover{background:#1557b0}
+.btn-outline{background:#fff;color:#1a73e8;border:1px solid #1a73e8}
+.btn-outline:hover{background:#f0f4ff}
+
+/* ── Section Filter Bar (inside each sub-view) ── */
+.section-filter-bar{display:flex;flex-wrap:wrap;gap:0;align-items:stretch;background:#F7F8FA;border:1px solid #E8E9F0;border-radius:12px;padding:4px;margin-bottom:14px}
+.section-filter-bar .sf-group{display:flex;flex-direction:column;justify-content:center;padding:6px 14px;border-right:1px solid #E8E9F0;min-width:0}
+.section-filter-bar .sf-group:last-of-type{border-right:none}
+.section-filter-bar .sf-label{font-size:10px;font-weight:600;color:#A0A3BD;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;white-space:nowrap}
+.section-filter-bar .sf-select{border:1px solid transparent;background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;color:#2D3142;font-family:inherit;cursor:pointer;transition:all .15s;min-width:90px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:26px}
+.section-filter-bar .sf-select:hover{border-color:#C5C8D6}
+.section-filter-bar .sf-select:focus{outline:none;border-color:#4F6BED;box-shadow:0 0 0 3px rgba(79,107,237,.1)}
+.section-filter-bar .sf-chips{display:flex;gap:4px;flex-wrap:wrap}
+.section-filter-bar .sf-chips .period-chip{padding:4px 12px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:500;color:#888;border:1px solid #ddd;background:#fff;transition:all .15s;user-select:none}
+.section-filter-bar .sf-chips .period-chip:hover{color:#1a73e8;border-color:#1a73e8}
+.section-filter-bar .sf-chips .period-chip.active{background:#e8f0fe;color:#1a73e8;border-color:#1a73e8;font-weight:600}
+
+/* ── Multi-Select Dropdown (for teacher filter) ── */
+.section-filter-bar .multi-select{position:relative;min-width:110px}
+.section-filter-bar .ms-trigger{display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid transparent;background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;color:#2D3142;cursor:pointer;transition:all .15s;min-height:32px;user-select:none}
+.section-filter-bar .ms-trigger:hover{border-color:#C5C8D6}
+.section-filter-bar .ms-trigger.open{border-color:#4F6BED;box-shadow:0 0 0 3px rgba(79,107,237,.1)}
+.section-filter-bar .ms-text{font-size:12px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.section-filter-bar .ms-text.has-selection{color:#2D3142;font-weight:500}
+.section-filter-bar .ms-arrow{width:10px;height:6px;flex-shrink:0;transition:transform .2s}
+.section-filter-bar .ms-trigger.open .ms-arrow{transform:rotate(180deg)}
+.section-filter-bar .ms-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #E8E9F0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:100;max-height:260px;overflow-y:auto;display:none;padding:4px}
+.section-filter-bar .ms-dropdown.show{display:block}
+.section-filter-bar .ms-option{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;color:#444;transition:background .12s;user-select:none}
+.section-filter-bar .ms-option:hover{background:#F5F6FA}
+.section-filter-bar .ms-option input{margin:0;accent-color:#4F6BED;cursor:pointer}
+.section-filter-bar .ms-option.selected{background:#e8f0fe;color:#1a73e8;font-weight:500}
+.section-filter-bar .ms-select-all{font-size:11px;color:#4F6BED;cursor:pointer;padding:4px 10px;border-bottom:1px solid #f0f0f0;margin-bottom:2px;user-select:none}
+.section-filter-bar .ms-select-all:hover{text-decoration:underline}
+
+/* ── Student table renewal status ── */
+.subj-cell{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:2px 0}
+.subj-cell .subj-info{font-size:12px;color:#555;white-space:nowrap}
+.subj-cell .tag{font-size:10px;padding:1px 5px}
+
+/* ── Trend Filter Bar ── */
+.tf-bar{display:flex;flex-wrap:wrap;gap:0;align-items:stretch;background:#F7F8FA;border:1px solid #E8E9F0;border-radius:12px;padding:4px}
+.tf-group{display:flex;flex-direction:column;justify-content:center;padding:6px 14px;border-right:1px solid #E8E9F0;min-width:0}
+.tf-group:last-of-type{border-right:none}
+.tf-label{font-size:10px;font-weight:600;color:#A0A3BD;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;white-space:nowrap}
+.tf-input,.tf-select{border:1px solid transparent;background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;color:#2D3142;font-family:inherit;cursor:pointer;transition:all .15s;min-width:90px}
+.tf-input:hover,.tf-select:hover{border-color:#C5C8D6}
+.tf-input:focus,.tf-select:focus{outline:none;border-color:#4F6BED;box-shadow:0 0 0 3px rgba(79,107,237,.1)}
+.tf-select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:26px}
+.tf-actions{display:flex;gap:6px;align-items:flex-end;padding:0 10px 0 6px}
+.tf-btn-query{padding:7px 22px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,#4F6BED,#378ADD);border:none;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(79,107,237,.25)}
+.tf-btn-query:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,107,237,.35)}
+.tf-btn-query:active{transform:translateY(0)}
+.tf-btn-reset{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#6C7293;background:#fff;border:1px solid #E8E9F0;cursor:pointer;transition:all .15s}
+.tf-btn-reset:hover{color:#4F6BED;border-color:#4F6BED;background:#F0F2FF}
+.tf-btn-share{padding:7px 18px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;background:linear-gradient(135deg,#1D9E75,#17A86B);border:none;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(29,158,117,.25);margin-left:4px}
+.tf-btn-share:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(29,158,117,.35)}
+.tf-btn-share:active{transform:translateY(0)}
+.tf-btn-share:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.advisor-period-chips{display:flex;gap:4px;flex-wrap:wrap}
+.tf-bar .period-chips{margin-bottom:0;gap:4px}
+
+/* ── Custom File Upload ── */
+.upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:16px}
+.upload-zone{position:relative;border:2px dashed #d0d5dd;border-radius:10px;padding:22px 18px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.upload-zone:hover{border-color:#1a73e8;background:#f5f8ff}
+.upload-zone.has-file{border-color:#389e0d;border-style:solid;background:#f6fdf6}
+.upload-zone.required{border-left:4px solid #e8453c}
+.upload-zone .uz-icon{font-size:28px;line-height:1;margin-bottom:2px}
+.upload-zone .uz-label{font-size:14px;font-weight:600;color:#333}
+.upload-zone .uz-hint{font-size:11px;color:#999}
+.upload-zone .uz-req{font-size:10px;color:#e8453c;font-weight:500;margin-top:-2px}
+.upload-zone .uz-file{display:none;font-size:12px;color:#389e0d;font-weight:500;margin-top:4px;word-break:break-all}
+.upload-zone.has-file .uz-file{display:block}
+.upload-zone.has-file .uz-hint{display:none}
+.upload-zone input[type=file]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer}
+
+/* ── Change Overview ── */
+.change-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.change-card{border-radius:8px;padding:10px 12px;font-size:12px}
+.change-card .hd{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.change-card .name{font-weight:600;color:#333;font-size:13px}
+.change-card .meta{color:#999;font-size:11px}
+.change-card .ch-lines{display:flex;flex-direction:column;gap:4px}
+.change-card .ch-line{display:flex;align-items:baseline;gap:4px;color:#555;font-size:11px}
+.change-card .ch-subj{font-weight:500;color:#1a73e8;min-width:56px;text-align:right}
+.change-card.new{border:1px solid #b7eb8f;background:#f0faf0}
+.change-card.refund{border:1px solid #ffccc7;background:#fff5f5}
+.change-card.info{border:1px solid #fcd34d;background:#fffbf0}
+.change-card.fall{border:1px solid #86efac;background:#f0fdf4}
+
+.student-table{border-collapse:collapse;width:100%;font-size:13px}
+.student-table th,.student-table td{border-bottom:1px solid #f0f0f0;padding:10px 12px;text-align:left}
+.student-table thead th{background:#f8f9fb;font-weight:600;font-size:12px;color:#666;position:sticky;top:0}
+.student-table tbody tr{transition:background .1s}
+.student-table tbody tr:hover{background:#f5f8ff}
+.student-table .clickable{color:#1a73e8;cursor:pointer;font-weight:500}
+.student-table .clickable:hover{text-decoration:underline}
+
+.subj-status{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:500;margin-right:3px}
+.subj-status.active{background:#dcfce7;color:#166534}
+.subj-status.inactive{background:#fee2e2;color:#991b1b}
+.subj-status.other{background:#f3f4f6;color:#6b7280}
+
+/* ══════ 5. Modal ══════ */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px 0}
+.modal-box{background:#fff;border-radius:14px;padding:18px 20px;width:480px;max-height:none;box-shadow:0 12px 40px rgba(0,0,0,.18);position:relative;margin:auto 0}
+.modal-box h3{font-size:18px;margin-bottom:0;color:#1a1a2e}
+.modal-box .modal-meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:#666;margin:4px 0 14px;padding-bottom:10px;border-bottom:1px solid #f0f0f0}
+.modal-box .modal-meta span{white-space:nowrap}
+.modal-box .modal-meta .mm-label{color:#aaa;margin-right:2px}
+.modal-box .subj-list{display:flex;flex-direction:column;gap:8px}
+.modal-box .subj-card{border:1px solid #eee;border-radius:8px;padding:10px 12px;position:relative;overflow:hidden}
+.modal-box .subj-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:0}
+.modal-box .subj-card.sx{background:#f8faff}.modal-box .subj-card.sx::before{background:#1a73e8}
+.modal-box .subj-card.yd{background:#f6fdf6}.modal-box .subj-card.yd::before{background:#389e0d}
+.modal-box .subj-card.sy{background:#fffbf5}.modal-box .subj-card.sy::before{background:#f57c00}
+.modal-box .subj-card .subj-hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.modal-box .subj-card .subj-name{font-weight:700;font-size:13px;color:#1a1a2e}
+.modal-box .subj-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 8px;font-size:11px;color:#555}
+.modal-box .subj-card .subj-grid div{display:flex;flex-direction:column;padding:2px 0;border-right:1px solid #f5f5f5;padding-right:8px}
+.modal-box .subj-card .subj-grid div:nth-child(4n){border-right:none}
+.modal-box .subj-card .subj-grid .sg-label{font-size:10px;color:#aaa;margin-bottom:1px}
+.modal-box .subj-card .subj-grid .sg-value{font-weight:600;color:#1a1a2e;font-size:12px}
+.modal-close{position:absolute;top:12px;right:14px;width:28px;height:28px;border-radius:50%;border:none;background:#f5f5f5;color:#999;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
+.modal-close:hover{background:#e8453c;color:#fff}
+
+/* ── Tags ── */
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.tag-blue{background:#dbeafe;color:#1e40af}
+.tag-green{background:#dcfce7;color:#166534}
+.tag-orange{background:#ffedd5;color:#9a3412}
+.tag-red{background:#fee2e2;color:#991b1b}
+.tag-gray{background:#f3f4f6;color:#6b7280}
+.summary-row{display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:#666;margin-top:12px}
+.summary-row strong{color:#1a1a2e}
+.empty-state{padding:40px;text-align:center;color:#ccc;font-size:13px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #e0e0e0;border-top-color:#1a73e8;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>UV台帐管理系统</h1>
+    <span class="time" id="headerTime">—</span>
+  </div>
+
+  <!-- Main Tabs -->
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="switchMainTab('calibrate')">📋 台帐校准</button>
+    <button class="main-tab" onclick="switchMainTab('monitor')">📊 校准监控</button>
+    <button class="main-tab" onclick="switchMainTab('overview')">🏆 数据总览</button>
+    <button class="main-tab" onclick="switchMainTab('trends')">📈 业务趋势</button>
+  </div>
+
+  <!-- ========== TAB 1: 台帐校准 ========== -->
+  <div id="tab-calibrate" class="tab-content">
+    <div class="panel">
+      <div class="panel-title">上传文件</div>
+      <form id="calibrateForm" enctype="multipart/form-data">
+        <div class="upload-grid">
+          <label class="upload-zone required" id="zone-enrollment">
+            <span class="uz-icon">📊</span>
+            <span class="uz-label">招生明细</span>
+            <span class="uz-hint">点击或拖拽上传 .xlsx / .xls</span>
+            <span class="uz-req">全量订单表 · 必传</span>
+            <span class="uz-file"></span>
+            <input type="file" name="enrollment" accept=".xlsx,.xls" required onchange="onFileChange(this)">
+          </label>
+          <label class="upload-zone required" id="zone-ledger">
+            <span class="uz-icon">📋</span>
+            <span class="uz-label">原UV台帐底表</span>
+            <span class="uz-hint">点击或拖拽上传 .xlsx / .xls</span>
+            <span class="uz-req">底表文件 · 必传</span>
+            <span class="uz-file"></span>
+            <input type="file" name="ledger" accept=".xlsx,.xls" required onchange="onFileChange(this)">
+          </label>
+          <label class="upload-zone" id="zone-fall">
+            <span class="uz-icon">🍂</span>
+            <span class="uz-label">秋季续费订单</span>
+            <span class="uz-hint">点击或拖拽上传 .xlsx / .xls</span>
+            <span class="uz-req" style="color:#999">可选</span>
+            <span class="uz-file"></span>
+            <input type="file" name="fall_orders" accept=".xlsx,.xls" onchange="onFileChange(this)">
+          </label>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary" style="padding:12px 40px;font-size:15px;border-radius:8px">🚀 开始校准</button>
+          <span id="calStatus" style="margin-left:12px;font-size:13px;color:#999"></span>
+        </div>
+      </form>
+    </div>
+    <div class="panel" id="calResult" style="display:none">
+      <div class="panel-title">校准结果</div>
+      <div id="calResultContent"></div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 2: 校准监控 ========== -->
+  <div id="tab-monitor" class="tab-content" style="display:none">
+    <div class="panel">
+      <div class="panel-title">校准历史 <span class="sub" id="monitorCount"></span></div>
+      <div id="monitorTable" style="overflow-x:auto"></div>
+    </div>
+    <div class="panel" id="monitorDetail" style="display:none">
+      <div class="panel-title">运行详情</div>
+      <div id="monitorDetailContent"></div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 3: 数据总览 ========== -->
+  <div id="tab-overview" class="tab-content" style="display:none">
+
+    <!-- Stats Cards -->
+    <div class="stats-grid" id="statsCards">
+      <div class="stat-card"><div class="label">总在读数 (PV)</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">学员总数 (UV)</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">在读人数 (UV)</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">退费人数 (UV)</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">退费 (PV)</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">总PV续报率</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">数学续报率</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">语文续报率</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">英语续报率</div><div class="value">—</div></div>
+      <div class="stat-card"><div class="label">总PV退费率</div><div class="value">—</div></div>
+    </div>
+
+    <!-- Sub Tabs -->
+    <div class="sub-tabs">
+      <button class="sub-tab active" onclick="switchSubTab('matrix')">矩阵</button>
+      <button class="sub-tab" onclick="switchSubTab('schedule')">排班</button>
+      <button class="sub-tab" onclick="switchSubTab('teacher')">讲师</button>
+      <button class="sub-tab" onclick="switchSubTab('advisor')">顾问</button>
+      <button class="sub-tab" onclick="switchSubTab('student')">学员</button>
+    </div>
+
+    <!-- ══════ 1. 矩阵 ══════ -->
+    <div id="sub-matrix" class="sub-content">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button onclick="openShareCard()" style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer">分享卡片</button>
+      </div>
+      <div class="matrix-wrap" id="matrixTable">加载中…</div>
+      <div class="matrix-legend">
+        <span><span class="dot blue"></span> 数 = 雪球思维</span>
+        <span><span class="dot green"></span> 语 = 悦读创作</span>
+        <span><span class="dot orange"></span> 英 = 双语素养</span>
+      </div>
+    </div>
+
+    <!-- ══════ 2. 排班看板 ══════ -->
+    <div id="sub-schedule" class="sub-content" style="display:none">
+      <div class="section-filter-bar" id="scheduleFilterBar">
+        <div class="sf-group">
+          <span class="sf-label">期次</span>
+          <div class="sf-chips" id="schedulePeriodChips"></div>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">教学点</span>
+          <select id="scheduleFilterPt" class="sf-select" onchange="onScheduleFilterChange()"><option value="">全部</option></select>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">老师</span>
+          <div class="multi-select" id="scheduleFilterTeacher" data-onchange="onScheduleFilterChange()">
+            <div class="ms-trigger" onclick="toggleMultiSelect('scheduleFilterTeacher')">
+              <span class="ms-text">全部</span>
+              <svg class="ms-arrow" viewBox="0 0 10 6"><path fill="#888" d="M0 0l5 6 5-6z"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pt-tabs" id="ptTabs"></div>
+      <div class="class-grid" id="classGrid">加载中…</div>
+    </div>
+
+    <!-- ══════ 3. 讲师视图 ══════ -->
+    <div id="sub-teacher" class="sub-content" style="display:none">
+      <div class="section-filter-bar" id="teacherFilterBar">
+        <div class="sf-group">
+          <span class="sf-label">期次</span>
+          <div class="sf-chips" id="teacherPeriodChips"></div>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">教学点</span>
+          <select id="teacherFilterPt" class="sf-select" onchange="onTeacherFilterChange()"><option value="">全部</option></select>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">老师</span>
+          <div class="multi-select" id="teacherFilterTeacher" data-onchange="onTeacherFilterChange()">
+            <div class="ms-trigger" onclick="toggleMultiSelect('teacherFilterTeacher')">
+              <span class="ms-text">全部</span>
+              <svg class="ms-arrow" viewBox="0 0 10 6"><path fill="#888" d="M0 0l5 6 5-6z"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="sf-group" style="margin-left:auto">
+          <div class="rank-toggle">
+            <button class="rank-toggle-btn active" id="teacherModeRenew" onclick="switchTeacherRankMode('renew')">续费</button>
+            <button class="rank-toggle-btn" id="teacherModeConv" onclick="switchTeacherRankMode('conv')">转化</button>
+          </div>
+        </div>
+      </div>
+      <div class="teacher-layout">
+        <div class="teacher-list" id="teacherList">加载中…</div>
+        <div class="teacher-detail" id="teacherDetail">
+          <div class="placeholder">← 点击左侧讲师名称查看详情</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ 4. 顾问视图 ══════ -->
+    <div id="sub-advisor" class="sub-content" style="display:none">
+      <div class="section-filter-bar" id="advisorFilterBar">
+        <div class="sf-group">
+          <span class="sf-label">期次</span>
+          <div class="sf-chips" id="advisorPeriodChips"></div>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">教学点</span>
+          <select id="advisorFilterPt" class="sf-select" onchange="onAdvisorFilterChange()"><option value="">全部</option></select>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">老师</span>
+          <div class="multi-select" id="advisorFilterTeacher" data-onchange="onAdvisorFilterChange()">
+            <div class="ms-trigger" onclick="toggleMultiSelect('advisorFilterTeacher')">
+              <span class="ms-text">全部</span>
+              <svg class="ms-arrow" viewBox="0 0 10 6"><path fill="#888" d="M0 0l5 6 5-6z"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="sf-group" style="margin-left:auto">
+          <div class="rank-toggle">
+            <button class="rank-toggle-btn active" id="advisorModeRenew" onclick="switchAdvisorRankMode('renew')">续费</button>
+            <button class="rank-toggle-btn" id="advisorModeConv" onclick="switchAdvisorRankMode('conv')">转化</button>
+          </div>
+        </div>
+      </div>
+      <div class="teacher-layout">
+        <div class="teacher-list" id="advisorList">加载中…</div>
+        <div class="teacher-detail" id="advisorDetail">
+          <div class="placeholder">← 点击左侧顾问名称查看详情</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ 5. 学员检索 ══════ -->
+    <div id="sub-student" class="sub-content" style="display:none">
+      <div class="section-filter-bar" id="studentFilters">
+        <div class="sf-group">
+          <span class="sf-label">教学点</span>
+          <select id="filterPt" class="sf-select" onchange="searchStudents()"><option value="">全部</option></select>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">期次</span>
+          <select id="filterPeriod" class="sf-select" onchange="searchStudents()"><option value="">全部</option></select>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">老师</span>
+          <div class="multi-select" id="filterTeacher" data-onchange="searchStudents()">
+            <div class="ms-trigger" onclick="toggleMultiSelect('filterTeacher')">
+              <span class="ms-text">全部</span>
+              <svg class="ms-arrow" viewBox="0 0 10 6"><path fill="#888" d="M0 0l5 6 5-6z"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">状态</span>
+          <select id="filterStatus" class="sf-select" onchange="searchStudents()"><option value="">全部</option><option value="在读">在读</option><option value="退费">退费</option></select>
+        </div>
+        <div class="sf-group">
+          <span class="sf-label">续秋状态</span>
+          <select id="filterContinueFall" class="sf-select" onchange="searchStudents()"><option value="">全部</option><option value="renewed">已续</option><option value="not_renewed">未续</option></select>
+        </div>
+        <div class="sf-group" style="border-right:none">
+          <span class="sf-label">搜索</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" id="filterSearch" placeholder="姓名/UID…" class="sf-select" style="min-width:120px" onkeyup="if(event.key==='Enter')searchStudents()">
+            <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;border-radius:8px" onclick="searchStudents()">搜索</button>
+            <button class="btn btn-outline" style="padding:6px 14px;font-size:12px;border-radius:8px" onclick="exportStudents()">导出</button>
+          </div>
+        </div>
+      </div>
+      <div style="overflow-x:auto" id="studentTable"></div>
+      <div id="studentPager" style="margin-top:12px;text-align:center;font-size:13px;color:#999"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 5. 学员详情弹窗 ══════ -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" id="modalContent"></div>
+</div>
+
+<!-- ========== TAB 4: 业务趋势 ========== -->
+  <div id="tab-trends" class="tab-content" style="display:none">
+    <div class="panel" style="padding:14px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:600;color:#2D3142">筛选条件</div>
+        <span style="font-size:11px;color:#A0A3BD">选择维度后点击查询</span>
+      </div>
+      <div class="tf-bar">
+        <div class="tf-group">
+          <div class="tf-label">开始</div>
+          <input type="date" id="trendStart" class="tf-input">
+        </div>
+        <div class="tf-group">
+          <div class="tf-label">结束</div>
+          <input type="date" id="trendEnd" class="tf-input">
+        </div>
+        <div class="tf-group">
+          <div class="tf-label">学科</div>
+          <select id="trendSubject" class="tf-select">
+            <option value="">全部</option>
+            <option value="雪球思维">雪球思维</option>
+            <option value="悦读创作">悦读创作</option>
+            <option value="双语素养">双语素养</option>
+          </select>
+        </div>
+        <div class="tf-group">
+          <div class="tf-label">教学点</div>
+          <select id="trendPoint" class="tf-select">
+            <option value="">全部</option>
+          </select>
+        </div>
+        <div class="tf-group">
+          <div class="tf-label">期次</div>
+          <select id="trendPeriod" class="tf-select">
+            <option value="">全部</option>
+            <option value="零期">零期</option>
+            <option value="一期">一期</option>
+            <option value="二期">二期</option>
+            <option value="三期">三期</option>
+          </select>
+        </div>
+        <div class="tf-group">
+          <div class="tf-label">主讲</div>
+          <select id="trendTeacher" class="tf-select">
+            <option value="">全部</option>
+          </select>
+        </div>
+        <div class="tf-actions">
+          <button class="tf-btn-query" onclick="loadTrends()">查询</button>
+          <button class="tf-btn-reset" onclick="resetTrendFilters()">重置</button>
+          <button class="tf-btn-share" onclick="generateShareLink()" title="生成外部分享链接">📤 生成分享链接</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态提示 -->
+    <div id="trendsStatus" style="padding:12px 16px;margin-top:12px;font-size:13px;color:#666;display:none"></div>
+
+    <!-- 趋势图表网格 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px" id="trendsGrid">
+      <div class="panel" style="grid-column:1/-1;padding:16px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:600;color:#2D3142">在读 / 退费 / 续费趋势</div>
+          <span style="font-size:11px;color:#A0A3BD">按天</span>
+        </div>
+        <div style="height:250px"><canvas id="chartOverview"></canvas></div>
+      </div>
+      <div class="panel" style="padding:16px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:600;color:#2D3142">暑期新增学员趋势</div>
+          <span style="font-size:11px;color:#A0A3BD">按天</span>
+        </div>
+        <div style="height:200px"><canvas id="chartNew"></canvas></div>
+      </div>
+      <div class="panel" style="padding:16px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:600;color:#2D3142">新增续费趋势</div>
+          <span style="font-size:11px;color:#A0A3BD">按天</span>
+        </div>
+        <div style="height:200px"><canvas id="chartBySubject"></canvas></div>
+      </div>
+      <div class="panel" style="grid-column:1/-1;padding:16px 18px">
+        <div class="ranking-grid">
+          <div class="rank-card" id="trendsTeacherRankCard">
+            <h3>
+              <span id="trendsTeacherRankTitle">主讲续报排行</span>
+              <div class="rank-toggle" style="margin-left:auto">
+                <button class="rank-toggle-btn active" data-mode="renew" onclick="switchTrendsTeacherMode('renew')">续费</button>
+                <button class="rank-toggle-btn" data-mode="conv" onclick="switchTrendsTeacherMode('conv')">转化</button>
+              </div>
+            </h3>
+            <div class="rank-list" id="trendsTeacherRankList"></div>
+          </div>
+          <div class="rank-card" id="trendsAdvisorRankCard">
+            <h3>
+              <span id="trendsAdvisorRankTitle">顾问续报排行</span>
+              <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+                <div class="rank-toggle">
+                  <button class="rank-toggle-btn active" data-mode="renew" onclick="switchTrendsAdvisorMode('renew')">续费</button>
+                  <button class="rank-toggle-btn" data-mode="conv" onclick="switchTrendsAdvisorMode('conv')">转化</button>
+                </div>
+                <div class="rank-toggle">
+                  <button class="rank-toggle-btn active" data-uv="uv" onclick="switchTrendsAdvisorUVMode('uv')">UV</button>
+                  <button class="rank-toggle-btn" data-uv="pv" onclick="switchTrendsAdvisorUVMode('pv')">PV</button>
+                </div>
+              </div>
+            </h3>
+            <div class="rank-list" id="trendsAdvisorRankList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ── State ──
+let currentMainTab = 'calibrate';
+let currentSubTab = 'matrix';
+let overviewData = null;
+let classData = null;
+let teacherListData = [];
+let trendsTeacherRankData = [];
+let trendsAdvisorRankData = [];
+let trendsTeacherRankMode = 'renew';  // 'renew' or 'conv'
+let trendsAdvisorRankMode = 'renew';  // 'renew' or 'conv'
+let trendsAdvisorRankUVMode = 'uv';   // 'uv' or 'pv'
+let currentPtFilter = '';
+let currentPeriods = new Set();
+let currentTeacher = null;
+let allStudents = [];
+// 全局期次配置（从后端 period_config 动态获取，支持可扩展）
+let PERIOD_ORDER = ['零期','一期','二期','三期'];  // 默认值，loadOverview 后会被覆盖
+let PERIOD_AUTO = '';
+
+// ── 前端时间判定当前期次 ──
+// 与后端 get_auto_period() 逻辑一致：按月日判断当前所处期次
+function getAutoPeriod() {
+  var now = new Date();
+  var t_md = (now.getMonth() + 1) * 100 + now.getDate();
+  if (t_md >= 810) return '三期';
+  if (t_md >= 727) return '二期';
+  if (t_md >= 713) return '一期';
+  if (t_md >= 629) return '零期';
+  return '';
+}
+
+// ── Section-specific filter state ──
+// 排班：期次多选 + 教学点下拉 + 老师多选
+let schedulePeriods = new Set();
+let schedulePt = '';
+let scheduleTeachers = new Set();
+let scheduleFilterInit = false;
+
+// 讲师：期次单选 + 教学点下拉 + 老师多选
+let teacherPeriod = '';
+let teacherRankMode = 'renew';  // 'renew' or 'conv'
+let teacherPt = '';
+let teacherFilterTeachers = new Set();
+let teacherFilterInit = false;
+
+// 顾问：期次单选（空=全部数据）+ 教学点下拉 + 老师多选
+let advisorPeriod = '';
+let advisorPt = '';
+let advisorTeachers = new Set();
+let advisorFilterInit = false;
+
+// 学员：老师多选
+let studentTeachers = new Set();
+
+// 通用：下拉选项缓存
+let filterOptions = {
+  teaching_points: [],
+  periods: [],
+  teachers: []
+};
+
+function buildScheduleParams() {
+  const params = new URLSearchParams();
+  if (schedulePeriods.size > 0) params.set('periods', [...schedulePeriods].join(','));
+  if (schedulePt) params.set('teaching_point', schedulePt);
+  if (scheduleTeachers.size > 0) params.set('teacher', [...scheduleTeachers].join(','));
+  return params.toString();
+}
+
+function buildTeacherParams() {
+  const params = new URLSearchParams();
+  if (teacherPeriod) params.set('period', teacherPeriod);
+  if (teacherPt) params.set('teaching_point', teacherPt);
+  if (teacherFilterTeachers.size > 0) params.set('teacher', [...teacherFilterTeachers].join(','));
+  return params.toString();
+}
+
+function buildAdvisorParams() {
+  const params = new URLSearchParams();
+  if (advisorPeriod) params.set('period', advisorPeriod);
+  if (advisorPt) params.set('teaching_point', advisorPt);
+  if (advisorTeachers.size > 0) params.set('teacher', [...advisorTeachers].join(','));
+  return params.toString();
+}
+
+function populateFilterDropdowns() {
+  // 教学点下拉
+  ['scheduleFilterPt','teacherFilterPt','advisorFilterPt'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">全部</option>' + (filterOptions.teaching_points||[]).map(v => `<option>${v}</option>`).join('');
+      sel.value = cur;
+    }
+  });
+  // 老师多选
+  populateMultiSelect('scheduleFilterTeacher', filterOptions.teachers||[], scheduleTeachers);
+  populateMultiSelect('teacherFilterTeacher', filterOptions.teachers||[], teacherFilterTeachers);
+  populateMultiSelect('advisorFilterTeacher', filterOptions.teachers||[], advisorTeachers);
+  populateMultiSelect('filterTeacher', filterOptions.teachers||[], studentTeachers);
+}
+
+function populateMultiSelect(id, options, selectedSet) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const trigger = container.querySelector('.ms-trigger');
+  if (!trigger) return;
+  // Remove old dropdown if exists
+  const oldDropdown = container.querySelector('.ms-dropdown');
+  if (oldDropdown) oldDropdown.remove();
+  // Build dropdown
+  const dropdown = document.createElement('div');
+  dropdown.className = 'ms-dropdown';
+  let html = '<div class="ms-select-all" onclick="toggleAllMultiSelect(\'' + id + '\')">全选/取消</div>';
+  options.forEach(t => {
+    const checked = selectedSet.has(t) ? 'checked' : '';
+    const cls = selectedSet.has(t) ? 'selected' : '';
+    html += `<label class="ms-option ${cls}"><input type="checkbox" value="${t}" ${checked} onchange="onMultiSelectChange('${id}', '${t}')">${t}</label>`;
+  });
+  dropdown.innerHTML = html;
+  container.appendChild(dropdown);
+  updateMultiSelectText(id, selectedSet);
+}
+
+function toggleMultiSelect(id) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const trigger = container.querySelector('.ms-trigger');
+  const dropdown = container.querySelector('.ms-dropdown');
+  if (!dropdown) return;
+  // Close all other dropdowns first
+  document.querySelectorAll('.multi-select .ms-dropdown.show').forEach(d => {
+    if (d !== dropdown) {
+      d.classList.remove('show');
+      d.parentElement.querySelector('.ms-trigger').classList.remove('open');
+    }
+  });
+  const isOpen = dropdown.classList.contains('show');
+  dropdown.classList.toggle('show');
+  trigger.classList.toggle('open', !isOpen);
+}
+
+function toggleAllMultiSelect(id) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const dropdown = container.querySelector('.ms-dropdown');
+  const checkboxes = dropdown.querySelectorAll('input[type=checkbox]');
+  const allChecked = [...checkboxes].every(cb => cb.checked);
+  checkboxes.forEach(cb => {
+    cb.checked = !allChecked;
+    cb.parentElement.classList.toggle('selected', !allChecked);
+  });
+  // Update state set
+  updateMultiSelectState(id);
+  updateMultiSelectText(id);
+  // Trigger onchange
+  const onchange = container.getAttribute('data-onchange');
+  if (onchange) eval(onchange + '()');
+}
+
+function onMultiSelectChange(id, teacher) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const checkbox = container.querySelector(`input[value="${teacher}"]`);
+  if (!checkbox) return;
+  checkbox.parentElement.classList.toggle('selected', checkbox.checked);
+  updateMultiSelectState(id);
+  updateMultiSelectText(id);
+  const onchange = container.getAttribute('data-onchange');
+  if (onchange) eval(onchange + '()');
+}
+
+function updateMultiSelectState(id) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const checkboxes = container.querySelectorAll('input[type=checkbox]:checked');
+  const selected = [...checkboxes].map(cb => cb.value);
+  // Map id to state set
+  if (id === 'scheduleFilterTeacher') { scheduleTeachers = new Set(selected); }
+  else if (id === 'teacherFilterTeacher') { teacherFilterTeachers = new Set(selected); }
+  else if (id === 'advisorFilterTeacher') { advisorTeachers = new Set(selected); }
+  else if (id === 'filterTeacher') { studentTeachers = new Set(selected); }
+}
+
+function updateMultiSelectText(id, selectedSet) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  // Determine current selected set
+  if (!selectedSet) {
+    if (id === 'scheduleFilterTeacher') selectedSet = scheduleTeachers;
+    else if (id === 'teacherFilterTeacher') selectedSet = teacherFilterTeachers;
+    else if (id === 'advisorFilterTeacher') selectedSet = advisorTeachers;
+    else if (id === 'filterTeacher') selectedSet = studentTeachers;
+  }
+  const textEl = container.querySelector('.ms-text');
+  if (!textEl) return;
+  if (!selectedSet || selectedSet.size === 0) {
+    textEl.textContent = '全部';
+    textEl.classList.remove('has-selection');
+  } else if (selectedSet.size === 1) {
+    textEl.textContent = [...selectedSet][0];
+    textEl.classList.add('has-selection');
+  } else {
+    textEl.textContent = `已选 ${selectedSet.size} 位`;
+    textEl.classList.add('has-selection');
+  }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.multi-select')) {
+    document.querySelectorAll('.multi-select .ms-dropdown.show').forEach(d => {
+      d.classList.remove('show');
+      d.parentElement.querySelector('.ms-trigger').classList.remove('open');
+    });
+  }
+});
+
+function initFilterOptions() {
+  if (!filterOptions.teaching_points.length) {
+    api('/api/overview/filters').then(data => {
+      const f = data.filters || {};
+      filterOptions.teaching_points = f.teaching_points || [];
+      filterOptions.periods = f.periods || [];
+      filterOptions.teachers = f.teachers || [];
+      populateFilterDropdowns();
+    }).catch(() => {});
+  }
+}
+
+function renderPeriodChips(containerId, periodsSet, allPeriods, clickHandler, allLabel='全部') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  let html = `<span class="period-chip ${periodsSet.size===0?'active':''}" onclick="${clickHandler}('')">${allLabel}</span>`;
+  allPeriods.forEach(p => {
+    html += `<span class="period-chip ${periodsSet.has(p)?'active':''}" onclick="${clickHandler}('${p}')">${p}</span>`;
+  });
+  el.innerHTML = html;
+}
+
+function renderSinglePeriodChip(containerId, selectedPeriod, allPeriods, clickHandler, allLabel='全部') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  let html = `<span class="period-chip ${selectedPeriod===''?'active':''}" onclick="${clickHandler}('')">${allLabel}</span>`;
+  allPeriods.forEach(p => {
+    html += `<span class="period-chip ${selectedPeriod===p?'active':''}" onclick="${clickHandler}('${p}')">${p}</span>`;
+  });
+  el.innerHTML = html;
+}
+
+function resetSectionFilters(section) {
+  if (section === 'schedule') {
+    schedulePeriods.clear();
+    schedulePt = '';
+    scheduleTeachers.clear();
+    document.getElementById('scheduleFilterPt').value = '';
+    resetMultiSelect('scheduleFilterTeacher');
+    renderSchedulePeriodChips();
+    loadSchedule();
+  } else if (section === 'teacher') {
+    teacherPeriod = '';
+    teacherPt = '';
+    teacherFilterTeachers.clear();
+    document.getElementById('teacherFilterPt').value = '';
+    resetMultiSelect('teacherFilterTeacher');
+    renderTeacherPeriodChips();
+    loadTeacherList();
+  } else if (section === 'advisor') {
+    advisorPeriod = '';
+    advisorPt = '';
+    advisorTeachers.clear();
+    document.getElementById('advisorFilterPt').value = '';
+    resetMultiSelect('advisorFilterTeacher');
+    renderAdvisorPeriodChips();
+    loadAdvisorList();
+  }
+}
+
+function resetMultiSelect(id) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.parentElement.classList.remove('selected');
+  });
+  updateMultiSelectText(id);
+}
+
+function reloadCurrentSubView() {
+  if (currentSubTab === 'matrix') loadMatrix();
+  else if (currentSubTab === 'schedule') loadSchedule();
+  else if (currentSubTab === 'teacher') loadTeacherList();
+  else if (currentSubTab === 'advisor') loadAdvisorList();
+  else if (currentSubTab === 'student') loadStudentFilters();
+}
+
+
+
+// ── 业务趋势 ──
+let trendCharts = {};
+
+async function loadTrendFilters() {
+  try {
+    const data = await api('/api/overview/filters');
+    const f = data.filters || {};
+    const ptSel = document.getElementById('trendPoint');
+    if (ptSel) {
+      ptSel.innerHTML = '<option value="">全部</option>';
+      (f.teaching_points||[]).forEach(v => ptSel.innerHTML += '<option>' + v + '</option>');
+    }
+    const tSel = document.getElementById('trendTeacher');
+    if (tSel) {
+      tSel.innerHTML = '<option value="">全部</option>';
+      (f.teachers||[]).forEach(v => tSel.innerHTML += '<option>' + v + '</option>');
+    }
+    const startInput = document.getElementById('trendStart');
+    const endInput   = document.getElementById('trendEnd');
+    if (startInput && !startInput.value) {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      startInput.value = d.toISOString().split('T')[0];
+    }
+    if (endInput && !endInput.value) {
+      endInput.value = new Date().toISOString().split('T')[0];
+    }
+  } catch(e) {
+    const statusEl = document.getElementById('trendsStatus');
+    if (statusEl) { statusEl.style.display='block'; statusEl.style.color='#e8453c'; statusEl.textContent='❌ 加载筛选器失败: '+e.message; }
+    console.error('loadTrendFilters failed', e);
+  }
+  // loadTrends() 由 switchMainTab 中的 requestAnimationFrame 调用，避免重复
+}
+
+async function loadTrends() {
+  const statusEl = document.getElementById('trendsStatus');
+  if (statusEl) { statusEl.style.display='block'; statusEl.style.color='#666'; statusEl.textContent='⏳ 正在加载趋势数据...'; }
+  const params = new URLSearchParams();
+  const start   = document.getElementById('trendStart')?.value;
+  const end     = document.getElementById('trendEnd')?.value;
+  const subject = document.getElementById('trendSubject')?.value;
+  const point   = document.getElementById('trendPoint')?.value;
+  const period  = document.getElementById('trendPeriod')?.value;
+  const teacher = document.getElementById('trendTeacher')?.value;
+  if (start) params.set('start_date', start);
+  if (end)   params.set('end_date', end);
+  if (subject) params.set('subjects', subject);
+  if (point)   params.set('teaching_points', point);
+  if (period)  params.set('periods', period);
+  if (teacher) params.set('teachers', teacher);
+
+  // 排行榜筛选参数（与趋势筛选联动，但只取当前最新快照）
+  const rankParams = new URLSearchParams();
+  if (period) rankParams.set('period', period);
+  if (point)  rankParams.set('teaching_point', point);
+  if (teacher) rankParams.set('teacher', teacher);
+
+  try {
+    const [trendRes, teacherRes, advisorRes] = await Promise.all([
+      api('/api/trends/data?' + params.toString()),
+      api('/api/overview/teacher-list?' + rankParams.toString()),
+      api('/api/overview/advisor-list?' + rankParams.toString())
+    ]);
+    const trends = trendRes.trends || [];
+    trendsTeacherRankData = teacherRes.teachers || [];
+    trendsAdvisorRankData = advisorRes.advisors || [];
+    if (statusEl) statusEl.textContent = '✅ 已加载 ' + trends.length + ' 条校准记录';
+    renderTrendCharts(trends);
+    renderTrendsTeacherRanking(trendsTeacherRankData);
+    renderTrendsAdvisorRanking(trendsAdvisorRankData);
+  } catch(err) { if(statusEl){statusEl.style.color='#e8453c'; statusEl.textContent='❌ 加载失败: '+err.message;} console.error('趋势加载失败', err); }
+}
+
+// ── 数据标签插件 ──
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+const dataLabelPlugin = {
+  id: 'dataLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    const area = chart.chartArea;
+    if (!area) return;
+
+    const isStacked = chart.options.scales?.x?.stacked === true;
+    const hasBar = chart.data.datasets.some(ds => (ds.type || chart.config.type) === 'bar');
+    const hasLine = chart.data.datasets.some(ds => (ds.type || chart.config.type) === 'line');
+    const isCombo = hasBar && hasLine && !isStacked;
+
+    const FONT = '600 10px -apple-system, "PingFang SC", sans-serif';
+    const FONT_SM = '600 9px -apple-system, "PingFang SC", sans-serif';
+    const FONT_RENEW = '600 11px -apple-system, "PingFang SC", sans-serif';
+
+    function mText(text, font) {
+      ctx.save();
+      ctx.font = font;
+      const w = ctx.measureText(text).width;
+      ctx.restore();
+      return w;
+    }
+
+    function hexRgba(hex, a) {
+      if (!hex || !hex.startsWith('#')) return `rgba(100,100,100,${a})`;
+      return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+    }
+
+    function boxesOverlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    // 数据密度决定折线标签显示策略
+    const chartWidth = area.right - area.left;
+    const numPts = chart.data.labels.length;
+    const pxPerPt = chartWidth / numPts;
+    function lineLabelIndices(data) {
+      const idxs = new Set();
+      // 始终包含首末（只要有效）
+      if (data[0] !== null && data[0] !== undefined) idxs.add(0);
+      if (numPts > 1 && data[numPts - 1] !== null && data[numPts - 1] !== undefined) idxs.add(numPts - 1);
+      // 最大/最小
+      let maxI = 0, minI = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] === null || data[i] === undefined) continue;
+        if (data[i] > (data[maxI] === null || data[maxI] === undefined ? -Infinity : data[maxI])) maxI = i;
+        if (data[i] < (data[minI] === null || data[minI] === undefined ? Infinity : data[minI])) minI = i;
+      }
+      idxs.add(maxI); idxs.add(minI);
+      // 根据密度填充中间点
+      const step = pxPerPt >= 80 ? 1 : pxPerPt >= 55 ? 2 : pxPerPt >= 40 ? 3 : 4;
+      for (let i = step; i < numPts - 1; i += step) idxs.add(i);
+      // 删除无效点
+      const result = [];
+      idxs.forEach(i => {
+        if (i >= 0 && i < data.length && data[i] !== null && data[i] !== undefined) result.push(i);
+      });
+      return result.sort((a, b) => a - b);
+    }
+
+    // 收集所有标签
+    const allLabels = [];
+    let labelId = 0;
+
+    // 1. 堆叠图内部段标签
+    if (isStacked) {
+      chart.data.datasets.forEach((ds, di) => {
+        if (ds.type && ds.type !== 'bar') return;
+        const meta = chart.getDatasetMeta(di);
+        if (meta.hidden || !meta.data) return;
+        meta.data.forEach((bar, bi) => {
+          const value = ds.data[bi];
+          if (value === null || value === undefined) return;
+          if (ds.label === '续费 PV') return; // 续费 PV 在柱顶标注
+          const segH = bar.height || Math.abs(bar.y - (bar.base || 0));
+          if (segH < 14) return;
+          const midY = (bar.y + (bar.base || 0)) / 2;
+          const small = segH < 20;
+          const font = small ? FONT_SM : FONT;
+          const text = String(value);
+          const tw = mText(text, font);
+          const pad = small ? 4 : 6;
+          const cH = small ? 14 : 18;
+          const cW = tw + pad * 2;
+          allLabels.push({
+            id: labelId++, x: bar.x - cW / 2, y: midY - cH / 2, w: cW, h: cH,
+            text, font, color: ds.borderColor || '#6C7293', fillColor: 'rgba(255,255,255,0.9)',
+            textColor: '#2D3142', anchorX: bar.x, anchorY: midY, priority: 1, side: 'inside'
+          });
+        });
+      });
+    }
+
+    // 2. 柱顶标签（堆叠图-续费PV / 组合图-柱顶）
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden || !meta.data) return;
+      const dsType = ds.type || chart.config.type;
+      if (dsType !== 'bar') return;
+
+      let isTopBar = false;
+      let topColor = '#6C7293';
+      let font = FONT;
+      let fillColor = 'rgba(100,100,100,0.15)';
+
+      if (isStacked && ds.label === '续费 PV') {
+        isTopBar = true;
+        topColor = '#1D9E75';
+        font = FONT_RENEW;
+        fillColor = 'rgba(29,158,117,0.15)';
+      } else if (isCombo) {
+        isTopBar = true;
+        topColor = typeof ds.borderColor === 'string' ? ds.borderColor : (ds.backgroundColor || '#6C7293');
+        font = FONT;
+        fillColor = hexRgba(topColor, 0.15);
+      }
+
+      if (!isTopBar) return;
+
+      meta.data.forEach((bar, bi) => {
+        const value = ds.data[bi];
+        if (value === null || value === undefined || value === 0) return;
+        const text = String(value);
+        const tw = mText(text, font);
+        const pad = font === FONT_RENEW ? 7 : 6;
+        const cH = 16;
+        const cW = tw + pad * 2;
+        const y = bar.y - cH - 3;
+        allLabels.push({
+          id: labelId++, x: bar.x - cW / 2, y, w: cW, h: cH,
+          text, font, color: topColor, fillColor, textColor: topColor,
+          anchorX: bar.x, anchorY: bar.y, priority: 2, side: 'above', barTop: true
+        });
+      });
+    });
+
+    // 3. 折线标签
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden || !meta.data) return;
+      const dsType = ds.type || chart.config.type;
+      if (dsType !== 'line') return;
+      const lineColor = ds.borderColor || '#6C7293';
+      const isRate = ds.label === '续报率 %';
+      const suffix = isRate ? '%' : '';
+      const visibleIdxs = (isCombo || isStacked) ? lineLabelIndices(ds.data) : [ds.data.length - 1];
+      const isTailOnly = !(isCombo || isStacked);
+
+      visibleIdxs.forEach(idx => {
+        const value = ds.data[idx];
+        if (value === null || value === undefined) return;
+        const pt = meta.data[idx];
+        if (!pt) return;
+        const text = String(isRate ? (+value).toFixed(1) : value) + suffix;
+        const tw = mText(text, FONT);
+        const pad = 5;
+        const cH = 16;
+        const cW = tw + pad * 2;
+        allLabels.push({
+          id: labelId++, x: pt.x - cW / 2, y: pt.y - cH - 6, w: cW, h: cH,
+          text, font: FONT, color: lineColor, fillColor: 'rgba(255,255,255,0.92)', textColor: lineColor,
+          anchorX: pt.x, anchorY: pt.y, priority: 3, side: 'above', canFlip: true, canShift: true, line: true
+        });
+      });
+    });
+
+    // 碰撞解决：按优先级排序，高优先级先放置
+    allLabels.sort((a, b) => a.priority - b.priority || a.id - b.id);
+    const placed = [];
+    const finalLabels = [];
+
+    allLabels.forEach(lb => {
+      let x = lb.x;
+      let y = lb.y;
+      let w = lb.w;
+      let h = lb.h;
+
+      // 水平边界限制
+      x = Math.max(area.left, Math.min(x, area.right - w));
+
+      function testConflicts(tx, ty) {
+        const box = { x: tx, y: ty, w, h };
+        return placed.some(p => boxesOverlap(box, p));
+      }
+
+      let conflicts = testConflicts(x, y);
+
+      // 尝试上下翻转（仅折线标签）
+      if (conflicts && lb.canFlip && lb.side === 'above') {
+        const belowY = lb.anchorY + 8;
+        if (!testConflicts(x, belowY)) {
+          y = belowY; lb.side = 'below'; conflicts = false;
+        }
+      }
+
+      // 尝试垂直小偏移（所有标签）
+      if (conflicts && lb.canShift !== false) {
+        const shifts = [-18, -12, +12, +18, -26, +26, -34, +34];
+        for (const s of shifts) {
+          const clampedY = Math.max(area.top + 2, Math.min(y + s, area.bottom - h - 2));
+          if (!testConflicts(x, clampedY)) {
+            y = clampedY; conflicts = false; break;
+          }
+        }
+      }
+
+      if (conflicts) return; // 跳过无法避免重叠的标签
+
+      // 最终边界限制
+      y = Math.max(area.top + 2, Math.min(y, area.bottom - h - 2));
+      lb.x = x; lb.y = y;
+      placed.push({ x, y, w, h });
+      finalLabels.push(lb);
+    });
+
+    // 绘制所有标签
+    finalLabels.forEach(lb => {
+      ctx.save();
+      ctx.font = lb.font;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      _roundRect(ctx, lb.x, lb.y, lb.w, lb.h, 6);
+      ctx.fillStyle = lb.fillColor;
+      ctx.fill();
+      ctx.strokeStyle = lb.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = lb.textColor;
+      ctx.fillText(lb.text, lb.anchorX || (lb.x + lb.w / 2), lb.y + lb.h / 2);
+      ctx.restore();
+    });
+  }
+};
+
+
+
+// 注册插件（只注册一次）
+if (typeof Chart !== 'undefined' && !Chart.__dlRegistered) {
+  Chart.register(dataLabelPlugin);
+  Chart.__dlRegistered = true;
+}
+
+function renderTrendCharts(trends) {
+  const statusEl = document.getElementById('trendsStatus');
+  if (typeof Chart === 'undefined') {
+    if (statusEl) { statusEl.style.color='#e8453c'; statusEl.textContent='❌ Chart.js 未加载，请检查网络连接后硬刷新页面（Cmd+Shift+R）。'; }
+    console.error('Chart.js not loaded!');
+    return;
+  }
+  Object.values(trendCharts).forEach(c => c.destroy());
+  trendCharts = {};
+  if (trends.length === 0) {
+    if (statusEl) { statusEl.style.color='#f57c00'; statusEl.textContent='⚠️ 当前筛选条件下无数据，请调整筛选器后重试。'; }
+    return;
+  }
+  if (statusEl) statusEl.textContent = '✅ 已加载 ' + trends.length + ' 天数据';
+
+  const labels = trends.map(t => t.run_time.substring(5, 10));
+
+  // 共用样式
+  const TC = {
+    grid: 'rgba(0,0,0,0.04)',
+    tickColor: '#A0A3BD',
+    labelColor: '#6C7293',
+    titleColor: '#2D3142',
+  };
+
+  const baseScales = {
+    x: {
+      grid: { display: false },
+      ticks: { color: TC.tickColor, font: { size: 10 } },
+      border: { color: 'rgba(0,0,0,0.06)' }
+    },
+    y: {
+      grid: { color: TC.grid },
+      ticks: { color: TC.tickColor, font: { size: 10 }, maxTicksLimit: 6 },
+      border: { display: false },
+      beginAtZero: true
+    }
+  };
+
+  const baseOptions = (extra = {}) => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        align: 'end',
+        labels: { color: TC.labelColor, font: { size: 11 }, boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle', padding: 12 }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(45,49,66,0.92)',
+        titleColor: '#fff',
+        bodyColor: '#E8E9F0',
+        titleFont: { size: 12, weight: '600' },
+        bodyFont: { size: 11 },
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: true,
+        boxWidth: 8,
+        boxHeight: 8,
+        usePointStyle: true,
+      }
+    },
+    scales: baseScales,
+    ...extra
+  });
+
+  // 1. 在读 / 退费 / 续费堆叠柱状图 + 续报率折线
+  const ctx0 = document.getElementById('chartOverview')?.getContext('2d');
+  if (ctx0) {
+    const renewalRates = trends.map(t => t.active_pv > 0 ? +(t.renewal_pv / t.active_pv * 100).toFixed(1) : 0);
+    trendCharts.overview = new Chart(ctx0, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '退费 PV',
+            data: trends.map(t => t.refund_pv),
+            backgroundColor: 'rgba(232,80,91,0.78)',
+            borderColor: '#E8505B',
+            borderWidth: 0,
+            maxBarThickness: 42,
+            order: 2,
+            stack: 'stack1'
+          },
+          {
+            label: '在读 PV',
+            data: trends.map(t => t.active_pv),
+            backgroundColor: 'rgba(55,138,221,0.78)',
+            borderColor: '#378ADD',
+            borderWidth: 0,
+            maxBarThickness: 42,
+            order: 2,
+            stack: 'stack1'
+          },
+          {
+            label: '续费 PV',
+            data: trends.map(t => t.renewal_pv),
+            backgroundColor: 'rgba(29,158,117,0.82)',
+            borderColor: '#1D9E75',
+            borderWidth: 0,
+            borderRadius: { topLeft: 4, topRight: 4 },
+            maxBarThickness: 42,
+            order: 2,
+            stack: 'stack1'
+          },
+          {
+            label: '续报率',
+            data: renewalRates,
+            type: 'line',
+            borderColor: '#F59E0B',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#F59E0B',
+            pointBorderWidth: 2,
+            yAxisID: 'y1',
+            order: 1,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: TC.labelColor, font: { size: 11 },
+              boxWidth: 10, boxHeight: 10, usePointStyle: true,
+              pointStyle: 'circle', padding: 12
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(45,49,66,0.92)',
+            titleColor: '#fff',
+            bodyColor: '#E8E9F0',
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 11 },
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: true,
+            boxWidth: 8,
+            boxHeight: 8,
+            usePointStyle: true,
+            callbacks: {
+              label: function(ctx) {
+                let label = ctx.dataset.label || '';
+                if (label) label += ': ';
+                if (ctx.dataset.label === '续报率') {
+                  label += ctx.parsed.y.toFixed(1) + '%';
+                } else {
+                  label += ctx.parsed.y;
+                }
+                return label;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false },
+            ticks: { color: TC.tickColor, font: { size: 10 } },
+            border: { color: 'rgba(0,0,0,0.06)' }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            title: { display: true, text: '人数', color: TC.labelColor, font: { size: 10 } },
+            grid: { color: TC.grid },
+            ticks: { color: TC.tickColor, font: { size: 10 }, maxTicksLimit: 6 },
+            border: { display: false }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            beginAtZero: true,
+            max: 100,
+            title: { display: true, text: '续报率 %', color: TC.labelColor, font: { size: 10 } },
+            grid: { display: false },
+            ticks: { color: '#F59E0B', font: { size: 10 }, maxTicksLimit: 5, callback: v => v + '%' }
+          }
+        }
+      }
+    });
+  }
+
+  // 2. 暑期新增学员趋势：每日新增学员（柱状）+ 整体在读学员（折线）
+  const ctx2 = document.getElementById('chartNew')?.getContext('2d');
+  if (ctx2) {
+    trendCharts.new = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '暑期新增学员',
+            data: trends.map(t => t.new_count || 0),
+            backgroundColor: 'rgba(232,148,59,0.78)',
+            borderColor: '#E8943B',
+            borderWidth: 0,
+            borderRadius: { topLeft: 4, topRight: 4 },
+            maxBarThickness: 32,
+            order: 2
+          },
+          {
+            label: '整体在读学员',
+            data: trends.map(t => t.active_pv || 0),
+            type: 'line',
+            borderColor: '#378ADD',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#378ADD',
+            pointBorderWidth: 2,
+            yAxisID: 'y1',
+            order: 1,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: TC.labelColor, font: { size: 11 },
+              boxWidth: 10, boxHeight: 10, usePointStyle: true,
+              pointStyle: 'circle', padding: 12
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(45,49,66,0.92)',
+            titleColor: '#fff',
+            bodyColor: '#E8E9F0',
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 11 },
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: true,
+            boxWidth: 8,
+            boxHeight: 8,
+            usePointStyle: true,
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: TC.tickColor, font: { size: 10 } },
+            border: { color: 'rgba(0,0,0,0.06)' }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: '新增学员', color: TC.labelColor, font: { size: 10 } },
+            grid: { color: TC.grid },
+            ticks: { color: TC.tickColor, font: { size: 10 }, maxTicksLimit: 6 },
+            border: { display: false }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            beginAtZero: true,
+            title: { display: true, text: '在读学员', color: TC.labelColor, font: { size: 10 } },
+            grid: { display: false },
+            ticks: { color: '#378ADD', font: { size: 10 }, maxTicksLimit: 5 }
+          }
+        }
+      }
+    });
+  }
+
+  // 3. 新增续费趋势：每日新增续费PV（柱状）+ 秋季在读学员（折线）
+  const ctx5 = document.getElementById('chartBySubject')?.getContext('2d');
+  if (ctx5) {
+    const renewalTotal = trends.map(t => t.renewal_pv || 0);
+    // 每日新增续费 = 当日 - 前一日（首日按 0 计）
+    const newRenewal = renewalTotal.map((v, i) => i === 0 ? 0 : Math.max(0, v - renewalTotal[i - 1]));
+
+    trendCharts.bySubject = new Chart(ctx5, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '新增续费',
+            data: newRenewal,
+            backgroundColor: 'rgba(29,158,117,0.78)',
+            borderColor: '#1D9E75',
+            borderWidth: 0,
+            borderRadius: { topLeft: 4, topRight: 4 },
+            maxBarThickness: 32,
+            order: 2
+          },
+          {
+            label: '秋季在读学员',
+            data: renewalTotal,
+            type: 'line',
+            borderColor: '#8B5CF6',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#8B5CF6',
+            pointBorderWidth: 2,
+            yAxisID: 'y1',
+            order: 1,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: TC.labelColor, font: { size: 11 },
+              boxWidth: 10, boxHeight: 10, usePointStyle: true,
+              pointStyle: 'circle', padding: 12
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(45,49,66,0.92)',
+            titleColor: '#fff',
+            bodyColor: '#E8E9F0',
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 11 },
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: true,
+            boxWidth: 8,
+            boxHeight: 8,
+            usePointStyle: true,
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: TC.tickColor, font: { size: 10 } },
+            border: { color: 'rgba(0,0,0,0.06)' }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: '新增续费', color: TC.labelColor, font: { size: 10 } },
+            grid: { color: TC.grid },
+            ticks: { color: TC.tickColor, font: { size: 10 }, maxTicksLimit: 6 },
+            border: { display: false }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            beginAtZero: true,
+            title: { display: true, text: '秋季在读学员', color: TC.labelColor, font: { size: 10 } },
+            grid: { display: false },
+            ticks: { color: '#8B5CF6', font: { size: 10 }, maxTicksLimit: 5 }
+          }
+        }
+      }
+    });
+  }
+}
+
+// ── 顾问教学点标签（1字简称）──
+var ADVISOR_POINT_TAG = {
+  '陈亮延': '天', '王达04': '天', '沈思浩': '天', '龙倩敏': '天',
+  '戎凯01': '同', '王丽': '同', '苏丽婷': '同',
+  '杨林33': '宝', '林志豪01': '宝', '张敏烨': '宝'
+};
+var ADVISOR_TAG_CLASS = {'天': 'point-tian', '同': 'point-tong', '宝': 'point-bao', '教': 'point-jiao'};
+
+function advisorPointPill(name) {
+  var tag = ADVISOR_POINT_TAG[name] || '教';
+  var cls = ADVISOR_TAG_CLASS[tag] || 'point-jiao';
+  return '<span class="tch-subj-pill ' + cls + '">' + tag + '</span>';
+}
+
+function rankMedalClass(idx) {
+  if (idx === 0) return 'gold';
+  if (idx === 1) return 'silver';
+  if (idx === 2) return 'bronze';
+  return '';
+}
+
+function rateColorClass(rate) {
+  if (rate >= 25) return 'high';
+  if (rate >= 15) return 'mid';
+  return 'low';
+}
+
+function renderTrendsTeacherRanking(teachers) {
+  const el = document.getElementById('trendsTeacherRankList');
+  const title = document.getElementById('trendsTeacherRankTitle');
+  if (!el) return;
+  if (!teachers || !teachers.length) {
+    el.innerHTML = '<div class="empty-hint">暂无数据</div>';
+    return;
+  }
+  const isConv = trendsTeacherRankMode === 'conv';
+  if (title) title.textContent = isConv ? '主讲转化排行' : '主讲续报排行';
+  const subjMap = {'雪球思维':{cls:'sx',label:'数'},'悦读创作':{cls:'yd',label:'语'},'双语素养':{cls:'sy',label:'英'}};
+
+  const sorted = teachers.slice().sort((a,b) => {
+    if (isConv) {
+      return (b.conv_rate || 0) - (a.conv_rate || 0);
+    } else {
+      const aR = a.active_count > 0 ? a.renewed_count / a.active_count * 100 : 0;
+      const bR = b.active_count > 0 ? b.renewed_count / b.active_count * 100 : 0;
+      return bR - aR;
+    }
+  });
+
+  el.innerHTML = sorted.map((t, idx) => {
+    const activeCount = t.active_count || 0;
+    const shouldRenew = t.should_renew || (activeCount - (t.pre_renewed||0));
+    const newRenewed = t.new_renewed || 0;
+    const totalRenewed = t.total_renewed || 0;
+    const rate = isConv
+      ? (t.conv_rate || (shouldRenew > 0 ? parseFloat((newRenewed / shouldRenew * 100).toFixed(1)) : 0))
+      : (activeCount > 0 ? parseFloat((totalRenewed / activeCount * 100).toFixed(1)) : 0);
+    const pct = Math.min(100, rate);
+    const rc = rateColorClass(pct);
+    const medal = rankMedalClass(idx);
+    const subjPills = (t.subjects||[]).map(s => {
+      const m = subjMap[s] || {cls:'',label:s.slice(0,1)};
+      return '<span class="tch-subj-pill '+m.cls+'">'+m.label+'</span>';
+    }).join('');
+    return '<div class="rank-item">'+
+      '<div class="rank-num '+medal+'">'+(idx+1)+'</div>'+
+      '<div class="rank-info">'+
+        '<div class="rank-name"><span class="tch-subj-inline">'+subjPills+'</span>'+t.name+'</div>'+
+        '<div class="rank-bar-wrap"><div class="rank-bar-fill '+rc+'" style="width:'+pct+'%"></div></div>'+
+        '<div class="rank-stat-row">'+
+          '<div class="rank-stat-cell"><div class="rs-label">在读</div><div class="rs-val">'+activeCount+'</div></div>'+
+          '<div class="rank-stat-cell"><div class="rs-label">应续</div><div class="rs-val">'+shouldRenew+'</div></div>'+
+          '<div class="rank-stat-cell"><div class="rs-label">当期转化</div><div class="rs-val accent">'+newRenewed+'</div></div>'+
+          '<div class="rank-stat-cell"><div class="rs-label">已续费</div><div class="rs-val">'+totalRenewed+'</div></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="rank-rate '+rc+'">'+rate+'%</div>'+
+    '</div>';
+  }).join('');
+}
+
+function renderTrendsAdvisorRanking(advisors) {
+  const el = document.getElementById('trendsAdvisorRankList');
+  const title = document.getElementById('trendsAdvisorRankTitle');
+  if (!el) return;
+  if (!advisors || !advisors.length) {
+    el.innerHTML = '<div class="empty-hint">暂无数据</div>';
+    return;
+  }
+  const isConv = trendsAdvisorRankMode === 'conv';
+  const isPV = trendsAdvisorRankUVMode === 'pv';
+  if (title) title.textContent = (isConv ? '顾问转化排行' : '顾问续报排行') + (isPV ? ' (PV)' : ' (UV)');
+
+  const pick = (x) => isPV ? {
+    active: x.pv_active,
+    pre_renewed: x.pv_pre_renewed,
+    should_renew: x.pv_should_renew,
+    new_renewed: x.pv_new_renewed,
+    total_renewed: x.pv_total_renewed
+  } : x;
+
+  const sorted = advisors.slice().sort((a,b) => {
+    const da = pick(a), db = pick(b);
+    if (isConv) {
+      const asr = da.should_renew || (da.active - da.pre_renewed);
+      const bsr = db.should_renew || (db.active - db.pre_renewed);
+      const ar = asr > 0 ? da.new_renewed / asr * 100 : 0;
+      const br = bsr > 0 ? db.new_renewed / bsr * 100 : 0;
+      return br - ar;
+    } else {
+      const aR = da.active > 0 ? (da.total_renewed||0) / da.active * 100 : 0;
+      const bR = db.active > 0 ? (db.total_renewed||0) / db.active * 100 : 0;
+      return bR - aR;
+    }
+  });
+
+  el.innerHTML = sorted.map((a, idx) => {
+    const d = pick(a);
+    const shouldRenew = d.should_renew || (d.active - d.pre_renewed);
+    const newRenewed = d.new_renewed || 0;
+    const totalRenewed = d.total_renewed || 0;
+    const rate = isConv
+      ? (shouldRenew > 0 ? parseFloat((newRenewed / shouldRenew * 100).toFixed(1)) : 0)
+      : (d.active > 0 ? parseFloat((totalRenewed / d.active * 100).toFixed(1)) : 0);
+    const pct = Math.min(100, rate);
+    const rc = rateColorClass(pct);
+    const medal = rankMedalClass(idx);
+    return '<div class="rank-item">'+
+      '<div class="rank-num '+medal+'">'+(idx+1)+'</div>'+
+      '<div class="rank-info">'+
+        '<div class="rank-name"><span class="tch-subj-inline">'+advisorPointPill(a.name)+'</span>'+a.name+'</div>'+
+        '<div class="rank-bar-wrap"><div class="rank-bar-fill '+rc+'" style="width:'+pct+'%"></div></div>'+
+        '<div class="rank-stat-row">'+
+          '<div class="rank-stat-cell"><div class="rs-label">在读</div><div class="rs-val">'+d.active+'</div></div>'+
+          '<div class="rank-stat-cell"><div class="rs-label">应续</div><div class="rs-val">'+shouldRenew+'</div></div>'+
+          '<div class="rank-stat-cell"><div class="rs-label">当期转化</div><div class="rs-val accent">'+newRenewed+'</div></div>'+
+          '<div class="rank-stat-cell"><div class="rs-label">已转化</div><div class="rs-val">'+totalRenewed+'</div></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="rank-rate '+rc+'">'+rate+'%</div>'+
+    '</div>';
+  }).join('');
+}
+
+function switchTrendsTeacherMode(mode) {
+  trendsTeacherRankMode = mode;
+  document.querySelectorAll('#trendsTeacherRankCard .rank-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  renderTrendsTeacherRanking(trendsTeacherRankData);
+}
+
+function switchTrendsAdvisorMode(mode) {
+  trendsAdvisorRankMode = mode;
+  document.querySelectorAll('#trendsAdvisorRankCard .rank-toggle-btn[data-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  renderTrendsAdvisorRanking(trendsAdvisorRankData);
+}
+
+function switchTrendsAdvisorUVMode(mode) {
+  trendsAdvisorRankUVMode = mode;
+  document.querySelectorAll('#trendsAdvisorRankCard .rank-toggle-btn[data-uv]').forEach(b => {
+    b.classList.toggle('active', b.dataset.uv === mode);
+  });
+  renderTrendsAdvisorRanking(trendsAdvisorRankData);
+}
+
+function resetTrendFilters() {
+  ['trendStart','trendEnd','trendPoint','trendTeacher','trendSubject','trendPeriod'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  loadTrends();
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('calibrateForm').addEventListener('submit', handleCalibrate);
+  const si = document.getElementById('filterSearch');
+  if (si) si.addEventListener('input', () => { if (allStudents.length) renderStudentTable(allStudents); });
+  loadMonitor();
+});
+
+// ── Main Tab Switch ──
+function switchMainTab(tab) {
+  currentMainTab = tab;
+  document.querySelectorAll('.main-tab').forEach((t,i) => t.classList.toggle('active', i===['calibrate','monitor','overview','trends'].indexOf(tab)));
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display='none');
+  if (document.getElementById('tab-'+tab)) document.getElementById('tab-'+tab).style.display='block';
+  if (tab === 'monitor') loadMonitor();
+  if (tab === 'overview') loadOverview();
+  if (tab === 'trends') {
+    loadTrendFilters();
+    requestAnimationFrame(() => { requestAnimationFrame(() => { loadTrends(); }); });
+  }
+}
+
+// ── Sub Tab Switch ──
+function switchSubTab(tab) {
+  currentSubTab = tab;
+  document.querySelectorAll('.sub-tab').forEach((t,i) => t.classList.toggle('active', i===['matrix','schedule','teacher','advisor','student'].indexOf(tab)));
+  document.querySelectorAll('.sub-content').forEach(el => el.style.display='none');
+  document.getElementById('sub-'+tab).style.display='block';
+  initFilterOptions();
+  if (tab === 'matrix') loadMatrix();
+  if (tab === 'schedule') { renderSchedulePeriodChips(); loadSchedule(); }
+  if (tab === 'teacher') { renderTeacherPeriodChips(); loadTeacherList(); }
+  if (tab === 'advisor') { renderAdvisorPeriodChips(); loadAdvisorList(); }
+  if (tab === 'student') loadStudentFilters();
+}
+
+// ── API helpers ──
+async function api(url, opts={}) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+// ── Custom File Upload ──
+function onFileChange(input) {
+  const zone = input.closest('.upload-zone');
+  const fileSpan = zone.querySelector('.uz-file');
+  if (input.files && input.files.length > 0) {
+    const name = input.files[0].name;
+    fileSpan.textContent = '📎 ' + (name.length > 28 ? name.slice(0,25)+'…' : name);
+    zone.classList.add('has-file');
+  } else {
+    fileSpan.textContent = '';
+    zone.classList.remove('has-file');
+  }
+}
+
+// Drag-and-drop support for upload zones
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.upload-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#1a73e8'; zone.style.background='#f0f4ff'; });
+    zone.addEventListener('dragleave', e => { e.preventDefault(); zone.style.borderColor=''; zone.style.background=''; });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.style.borderColor = '';
+      zone.style.background = '';
+      const fileInput = zone.querySelector('input[type=file]');
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        onFileChange(fileInput);
+      }
+    });
+  });
+});
+
+// ── TAB 1: Calibrate ──
+
+function abbrevChangeType(type) {
+  const map = {'班级变更':'班','主讲变更':'讲','教室变更':'室','时段变更':'时','期次变更':'期','班型变更':'型'};
+  if (!type) return '';
+  const parts = type.split('-');
+  if (parts[0] === '新增退费') return '';
+  if (parts[0] === '新增报科') return '增科';
+  if (parts[0] === '调班') return map[parts[1]] || (parts[1] ? parts[1].replace('变更','') : '');
+  return type.replace('变更','');
+}
+
+function formatStudentChanges(sc) {
+  const details = sc.details || [];
+  // 新增学员：保留原摘要但简化
+  if (sc.change_type === '新增学员') {
+    const summary = (sc.summary || '').replace(/；/g, ' ｜ ');
+    return `<div style="color:#166534;font-size:11px;line-height:1.5">${summary || '新增学员'}</div>`;
+  }
+  if (!details.length) {
+    return `<div style="color:#666;font-size:11px">${sc.summary || '无明细'}</div>`;
+  }
+  // 按学科分组
+  const bySubject = {};
+  details.forEach(d => {
+    const subj = d.subject || (d.type ? d.type.split('-')[1] : '');
+    if (!subj) return;
+    if (!bySubject[subj]) bySubject[subj] = [];
+    bySubject[subj].push(d);
+  });
+
+  const subjOrder = ['雪球思维','悦读创作','双语素养'];
+  const lines = [];
+  subjOrder.forEach(subj => {
+    const items = bySubject[subj];
+    if (!items) return;
+    // 退费优先
+    const refund = items.find(it => it.type && it.type.includes('退费'));
+    if (refund) {
+      const rt = (refund.type.split('-')[1] || refund.new || '退费');
+      lines.push(`<div class="ch-line"><span class="ch-subj">${subj}</span><span>：退费(${rt})</span></div>`);
+      return;
+    }
+    // 新增报科
+    const added = items.find(it => it.type && it.type.includes('新增报科'));
+    if (added) {
+      lines.push(`<div class="ch-line"><span class="ch-subj">${subj}</span><span>：新增报科</span></div>`);
+      return;
+    }
+    // 续秋变化
+    const cf = items.find(it => it.type && it.type.includes('续秋变化'));
+    if (cf) {
+      const oldShow = cf.old || '-';
+      const newShow = cf.new || '-';
+      lines.push(`<div class="ch-line"><span class="ch-subj">${subj}</span><span>：续秋 ${oldShow}→${newShow}</span></div>`);
+      return;
+    }
+    // 调班：只展示期次变动 + 主讲变动（教室/时段/班型由班级决定，无需展示）
+    const periodItem = items.find(it => it.field === 'period');
+    const teacherItem = items.find(it => it.field === 'teacher');
+    const parts = [];
+    if (periodItem && periodItem.old && periodItem.new && periodItem.old !== periodItem.new) {
+      parts.push(`${periodItem.old}→${periodItem.new}`);
+    }
+    if (teacherItem && teacherItem.old && teacherItem.new && teacherItem.old !== teacherItem.new) {
+      parts.push(`主讲 ${teacherItem.old}→${teacherItem.new}`);
+    }
+    if (parts.length) {
+      lines.push(`<div class="ch-line"><span class="ch-subj">${subj}</span><span>：调班（${parts.join('，')}）</span></div>`);
+    } else {
+      // 只有教室/时段等衍生变动，用简短描述
+      lines.push(`<div class="ch-line"><span class="ch-subj">${subj}</span><span>：调班</span></div>`);
+    }
+  });
+
+  return `<div class="ch-lines">${lines.join('')}</div>`;
+}
+
+async function handleCalibrate(e) {
+  e.preventDefault();
+  const form = document.getElementById('calibrateForm');
+  const statusE = document.getElementById('calStatus');
+  statusE.innerHTML = '<span class="spin"></span> 校准中…';
+  try {
+    const fd = new FormData(form);
+    const res = await fetch('/api/calibrate', {method:'POST',body:fd});
+    const data = await res.json();
+    if (data.success) {
+      statusE.textContent = '✅ 校准完成';
+      document.getElementById('calResult').style.display='block';
+      const c = document.getElementById('calResultContent');
+      const s = data.stats;
+      const newList = data.new_students_list || [];
+      const changedList = data.changed_list || [];
+      const studentChanges = data.student_changes || [];
+
+      // 统计卡片 — 新增续费：统计人数 + 单科数
+      function isFallVal(v) { return v === '是' || v === 'T' || v === 'AC' || v === 'AL'; }
+      let fallUv = 0, fallPv = 0;
+      changedList.forEach(sc => {
+        const details = sc.details || [];
+        let hasFall = false;
+        details.forEach(d => {
+          if (d.type && d.type.includes('续秋变化')) {
+            if (isFallVal(d.new) && !isFallVal(d.old)) {
+              fallPv += 1;
+              if (!hasFall) { hasFall = true; fallUv += 1; }
+            }
+          }
+        });
+      });
+      let html = `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
+        <div style="text-align:center;background:#f8f9fb;border-radius:8px;padding:12px 8px">
+          <div style="font-size:22px;font-weight:700;color:#1a73e8">${s.total_students}</div>
+          <div style="font-size:11px;color:#999">学员总数</div>
+        </div>
+        <div style="text-align:center;background:#f0faf0;border-radius:8px;padding:12px 8px">
+          <div style="font-size:22px;font-weight:700;color:#389e0d">${s.active_students}</div>
+          <div style="font-size:11px;color:#999">在读</div>
+        </div>
+        <div style="text-align:center;background:#fffbe6;border-radius:8px;padding:12px 8px">
+          <div style="font-size:22px;font-weight:700;color:#f57c00">${s.new_students}</div>
+          <div style="font-size:11px;color:#999">新增学员</div>
+        </div>
+        <div style="text-align:center;background:#fff0f0;border-radius:8px;padding:12px 8px">
+          <div style="font-size:22px;font-weight:700;color:#e8453c">${s.new_refund_students||0}</div>
+          <div style="font-size:11px;color:#999">新增退费(UV)</div>
+          <div style="font-size:10px;color:#999">${s.new_refund_details||0} 单科</div>
+        </div>
+        <div style="text-align:center;background:#f0faf0;border-radius:8px;padding:12px 8px">
+          <div style="font-size:22px;font-weight:700;color:#389e0d">${fallUv}</div>
+          <div style="font-size:11px;color:#999">新增续费(UV)</div>
+          <div style="font-size:10px;color:#999">${fallPv} 单科</div>
+        </div>
+        <div style="text-align:center;background:#f3e8ff;border-radius:8px;padding:12px 8px">
+          <div style="font-size:22px;font-weight:700;color:#7c3aed">${s.changes_count}</div>
+          <div style="font-size:11px;color:#999">变动学员</div>
+        </div>
+      </div>`;
+
+      // 变动类型统计小标签
+      const breakdown = s.change_breakdown || {};
+      if (Object.keys(breakdown).length > 0) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">';
+        Object.entries(breakdown).sort((a,b)=>b[1]-a[1]).forEach(([t,n]) => {
+          const isNew = t.includes('新增学员');
+          const isRefund = t.includes('退费');
+          const isFall = t.includes('续秋');
+          const bg = isNew ? '#dcfce7' : (isRefund ? '#fee2e2' : (isFall ? '#dcfce7' : '#fff3e0'));
+          const cl = isNew ? '#166534' : (isRefund ? '#991b1b' : (isFall ? '#166534' : '#9a3412'));
+          html += `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;background:${bg};color:${cl}">${t} ${n}</span>`;
+        });
+        html += '</div>';
+      }
+
+      // ── 学员变动概览 ──
+      if (studentChanges.length > 0) {
+        html += '<div style="margin-bottom:14px">';
+        html += '<div style="font-size:14px;font-weight:600;color:#333;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #eee">变动概览（按学员维度）</div>';
+
+        // 新增学员
+        if (newList.length > 0) {
+          html += '<div style="margin-bottom:12px">';
+          html += `<div style="font-size:12px;font-weight:600;color:#389e0d;margin-bottom:6px">🟢 新增学员（${newList.length}人）</div>`;
+          html += '<div class="change-grid">';
+          newList.forEach(sc => {
+            html += `<div class="change-card new">
+              <div class="hd">
+                <span class="name">${sc.name}</span>
+                <span class="meta">${sc.uid}</span>
+                <span class="meta">${sc.teaching_point||''}</span>
+              </div>
+              ${formatStudentChanges(sc)}
+            </div>`;
+          });
+          html += '</div></div>';
+        }
+
+        // 新增退费（从 changedList 中筛选）
+        const refundChanges = changedList.filter(sc => sc.summary && sc.summary.includes('退费'));
+        if (refundChanges.length > 0) {
+          html += '<div style="margin-bottom:12px">';
+          html += `<div style="font-size:12px;font-weight:600;color:#e8453c;margin-bottom:6px">🔴 新增退费（${refundChanges.length}人）</div>`;
+          html += '<div class="change-grid">';
+          refundChanges.forEach(sc => {
+            html += `<div class="change-card refund">
+              <div class="hd">
+                <span class="name">${sc.name}</span>
+                <span class="meta">${sc.uid}</span>
+                <span class="meta">${sc.teaching_point||''}</span>
+              </div>
+              ${formatStudentChanges(sc)}
+            </div>`;
+          });
+          html += '</div></div>';
+        }
+
+        // 新增续费（秋季续报变化）
+        const fallChanges = changedList.filter(sc => {
+          const details = sc.details || [];
+          return details.some(d => d.type && d.type.includes('续秋变化'));
+        });
+        if (fallChanges.length > 0) {
+          html += '<div style="margin-bottom:12px">';
+          html += `<div style="font-size:12px;font-weight:600;color:#389e0d;margin-bottom:6px">🟢 新增续费（${fallChanges.length}人）</div>`;
+          html += '<div class="change-grid">';
+          fallChanges.forEach(sc => {
+            html += `<div class="change-card fall">
+              <div class="hd">
+                <span class="name">${sc.name}</span>
+                <span class="meta">${sc.uid}</span>
+                <span class="meta">${sc.teaching_point||''}</span>
+              </div>
+              ${formatStudentChanges(sc)}
+            </div>`;
+          });
+          html += '</div></div>';
+        }
+
+        // 调班（期次/主讲变动 + 新增报科等）
+        const transferChanges = changedList.filter(sc => {
+          if (sc.summary && (sc.summary.includes('退费') || sc.summary.includes('续秋'))) return false;
+          const details = sc.details || [];
+          return details.some(d => d.type && (d.type.includes('调班') || d.type.includes('新增报科')));
+        });
+        if (transferChanges.length > 0) {
+          html += '<div style="margin-bottom:12px">';
+          html += `<div style="font-size:12px;font-weight:600;color:#f57c00;margin-bottom:6px">🟡 调班（${transferChanges.length}人）</div>`;
+          html += '<div class="change-grid">';
+          transferChanges.forEach(sc => {
+            html += `<div class="change-card info">
+              <div class="hd">
+                <span class="name">${sc.name}</span>
+                <span class="meta">${sc.uid}</span>
+                <span class="meta">${sc.teaching_point||''}</span>
+              </div>
+              ${formatStudentChanges(sc)}
+            </div>`;
+          });
+          html += '</div></div>';
+        }
+
+        html += '</div>';
+      }
+
+      // ── 异常数据标记 ──
+      const anomalies = data.anomalies || [];
+      if (anomalies.length > 0) {
+        html += '<div style="margin-bottom:14px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px 14px">';
+        html += '<div style="font-size:13px;font-weight:600;color:#c2410c;margin-bottom:8px">⚠️ 异常数据修正（已自动校准）</div>';
+        anomalies.forEach(a => {
+          html += `<div style="font-size:12px;color:#7c2d12;padding:4px 0;border-bottom:1px solid #fed7aa">
+            <span style="font-weight:600">${a.name}</span>
+            <span style="color:#999;margin-left:6px">${a.uid}</span>
+            <div style="margin-top:2px">${a.desc}</div>
+          </div>`;
+        });
+        html += '</div>';
+      }
+
+      // 如果既没变动也没异常
+      if (studentChanges.length === 0 && anomalies.length === 0) {
+        html += '<div style="padding:16px;text-align:center;color:#999;font-size:13px;background:#fafafa;border-radius:6px;margin-bottom:14px">本次校准无变动</div>';
+      }
+
+      // 下载按钮
+      html += `<div style="display:flex;gap:12px;margin-top:4px">
+        <a href="${data.files.ledger}" class="btn btn-primary" download>📥 下载校准台帐</a>
+        <a href="${data.files.report}" class="btn btn-outline" download>📥 下载校准报告</a>
+      </div>`;
+
+      c.innerHTML = html;
+      loadMonitor();
+    } else {
+      statusE.textContent = '❌ '+data.error;
+    }
+  } catch(err) {
+    statusE.textContent = '❌ 请求失败: '+err.message;
+  }
+}
+
+// ── TAB 2: Monitor ──
+async function loadMonitor() {
+  try {
+    const data = await api('/api/runs');
+    const runs = data.runs || [];
+    document.getElementById('monitorCount').textContent = `共 ${runs.length} 次校准`;
+    if (runs.length === 0) {
+      document.getElementById('monitorTable').innerHTML = '<div class="empty-state">暂无校准记录</div>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>';
+    ['时间','学员总数','在读','新增','退费','变动','招生明细','原台帐','操作'].forEach(h => {
+      html += `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #eee;color:#666;font-size:12px">${h}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    runs.forEach(r => {
+      html += `<tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:8px 10px">${r.run_time||''}</td>
+        <td style="padding:8px 10px;font-weight:600">${r.total_students||0}</td>
+        <td style="padding:8px 10px;color:#389e0d">${r.active_students||0}</td>
+        <td style="padding:8px 10px;color:#f57c00">${r.new_students||0}</td>
+        <td style="padding:8px 10px;color:#e8453c">${r.refund_students||0}</td>
+        <td style="padding:8px 10px">${r.changes_count||0}</td>
+        <td style="padding:8px 10px;font-size:12px;color:#999;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.enrollment_file||''}</td>
+        <td style="padding:8px 10px;font-size:12px;color:#999;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.old_ledger_file||''}</td>
+        <td style="padding:8px 10px"><a href="#" onclick="viewRunDetail('${r.run_id}');return false" style="color:#1a73e8;font-size:12px">详情</a></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('monitorTable').innerHTML = html;
+  } catch(err) {
+    document.getElementById('monitorTable').innerHTML = `<div class="empty-state">加载失败: ${err.message}</div>`;
+  }
+}
+
+async function viewRunDetail(runId) {
+  try {
+    const data = await api('/api/runs/'+runId);
+    const runs = data.run || {};
+    const changes = data.changes || [];
+    const c = document.getElementById('monitorDetailContent');
+    c.innerHTML = `
+      <div style="display:flex;gap:20px;font-size:13px;margin-bottom:16px">
+        <span>时间: <strong>${runs.run_time||''}</strong></span>
+        <span>学员: <strong>${runs.total_students||0}</strong></span>
+        <span>变动: <strong>${runs.changes_count||0}</strong></span>
+      </div>`;
+    if (changes.length > 0) {
+      let t = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>';
+      ['学员','学科','变动类型','字段','旧值','新值'].forEach(h => t+=`<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #eee;color:#666">${h}</th>`);
+      t += '</tr></thead><tbody>';
+      changes.forEach(ch => {
+        const ctCls = ch.change_type === '新增学员' ? 'tag-blue' : (ch.change_type.includes('退费') ? 'tag-red' : (ch.change_type.includes('续秋') ? 'tag-green' : 'tag-orange'));
+        t += `<tr style="border-bottom:1px solid #f5f5f5">
+          <td style="padding:6px 8px">${ch.name||''}</td>
+          <td style="padding:6px 8px">${ch.subject||''}</td>
+          <td style="padding:6px 8px"><span class="tag ${ctCls}">${ch.change_type||''}</span></td>
+          <td style="padding:6px 8px">${ch.field_name||''}</td>
+          <td style="padding:6px 8px;color:#999">${ch.old_value||''}</td>
+          <td style="padding:6px 8px;color:#1a73e8">${ch.new_value||''}</td>
+        </tr>`;
+      });
+      t += '</tbody></table>';
+      c.innerHTML += t;
+    }
+    document.getElementById('monitorDetail').style.display = 'block';
+  } catch(err) {
+    document.getElementById('monitorDetailContent').innerHTML = `<div class="empty-state">加载失败</div>`;
+    document.getElementById('monitorDetail').style.display = 'block';
+  }
+}
+
+// ── TAB 3: Overview ──
+async function loadOverview() {
+  try {
+    initFilterOptions();
+    const data = await api('/api/overview/stats');
+    overviewData = data;
+    document.getElementById('headerTime').textContent = '数据时间: ' + (data.run_time||'—');
+
+    const pp = data.renewal_rate_by_period || {};
+    // 从后端 period_config 动态获取期次配置（支持可扩展）
+    const pc = data.period_config || {};
+    const pOrder = pc.order || PERIOD_ORDER;
+    PERIOD_ORDER = pOrder;  // 更新全局变量
+    PERIOD_AUTO = pc.auto_period || getAutoPeriod() || '';
+    const pKey = {}; pOrder.forEach((p, i) => { pKey[p] = 'p' + i; });
+    const pShort = {}; pOrder.forEach(p => { pShort[p] = p[0]; });
+    let currentPeriod = pc.auto_period || getAutoPeriod() || '';
+
+    function periodHint(map, suffix='') {
+      return `<div class="hint">` + pOrder.map(p => {
+        const v = (map||{})[p] ?? 0;
+        const isCur = p === currentPeriod ? ' current' : '';
+        return `<div class="period-row ${pKey[p]}${isCur}"><span class="period-label">${pShort[p]}</span><span class="period-val">${v}${suffix}</span></div>`;
+      }).join('') + `</div>`;
+    }
+
+    document.getElementById('statsCards').innerHTML = `
+      <div class="stat-card accent-blue side-hints">
+        <div class="stat-main"><div class="label">总在读数 (PV)</div><div class="value">${data.active_pv||0}</div></div>
+        ${periodHint(data.active_pv_by_period)}
+      </div>
+      <div class="stat-card side-hints">
+        <div class="stat-main"><div class="label">学员总数 (UV)</div><div class="value">${data.total_uv||data.total||0}</div></div>
+        ${periodHint(data.total_uv_by_period)}
+      </div>
+      <div class="stat-card accent-green side-hints">
+        <div class="stat-main"><div class="label">在读人数 (UV)</div><div class="value">${data.active_uv||data.active||0}</div></div>
+        ${periodHint(data.active_uv_by_period)}
+      </div>
+      <div class="stat-card accent-red side-hints">
+        <div class="stat-main"><div class="label">退费人数 (UV)</div><div class="value">${data.refund_uv||data.refund||0}</div></div>
+        ${periodHint(data.refund_uv_by_period)}
+      </div>
+      <div class="stat-card accent-orange side-hints">
+        <div class="stat-main"><div class="label">退费 (PV)</div><div class="value">${data.refund_pv||0}</div></div>
+        ${periodHint(data.refund_pv_by_period)}
+      </div>
+      <div class="stat-card accent-purple side-hints">
+        <div class="stat-main"><div class="label">总PV续报率</div><div class="value">${data.total_renewal_rate||0}%</div></div>
+        ${periodHint(data.total_renewal_rate_by_period, '%')}
+      </div>
+      <div class="stat-card accent-blue side-hints">
+        <div class="stat-main"><div class="label">数学续报率</div><div class="value">${data.math_renewal_rate||0}%</div></div>
+        ${periodHint(pp['雪球思维'], '%')}
+      </div>
+      <div class="stat-card accent-green side-hints">
+        <div class="stat-main"><div class="label">语文续报率</div><div class="value">${data.chinese_renewal_rate||0}%</div></div>
+        ${periodHint(pp['悦读创作'], '%')}
+      </div>
+      <div class="stat-card accent-orange side-hints">
+        <div class="stat-main"><div class="label">英语续报率</div><div class="value">${data.english_renewal_rate||0}%</div></div>
+        ${periodHint(pp['双语素养'], '%')}
+      </div>
+      <div class="stat-card accent-red side-hints">
+        <div class="stat-main"><div class="label">总PV退费率</div><div class="value">${data.total_refund_rate||0}%</div></div>
+        ${periodHint(data.total_refund_rate_by_period, '%')}
+      </div>`;
+    if (currentSubTab === 'matrix') loadMatrix();
+    else if (currentSubTab === 'schedule') loadSchedule();
+    else if (currentSubTab === 'teacher') loadTeacherList();
+    else if (currentSubTab === 'advisor') loadAdvisorList();
+    else if (currentSubTab === 'student') loadStudentFilters();
+  } catch(err) {
+    document.getElementById('statsCards').innerHTML = `<div class="empty-state" style="grid-column:1/-1">加载失败: ${err.message}</div>`;
+  }
+}
+
+/* ════════════════════════════════════════════
+   1. 矩阵 — 美化版渲染
+   ════════════════════════════════════════════ */
+async function loadMatrix() {
+  const el = document.getElementById('matrixTable');
+  el.innerHTML = '加载中…';
+  try {
+    const data = await api('/api/overview/matrix');
+    const pts = data.teaching_points || [];
+    const periods = data.periods || [];
+    const subjs = data.subjects || [];
+    const matrix = data.matrix || {};
+    const ptTotals = data.point_totals || {};
+    const periodTotals = data.period_totals || {};
+    const grand = data.grand_total || {};
+
+    const subjKey = {'雪球思维':'sx','悦读创作':'yd','双语素养':'sy'};
+    const subjLabel = {'雪球思维':'数','悦读创作':'语','双语素养':'英'};
+
+    function cellHTML(cell) {
+      if (!cell || !cell.active) return '<div class="matrix-cell chill">—</div>';
+      const rate = cell.renewal_rate || 0;
+      const rc = rate >= 10 ? 'high' : (rate >= 5 ? 'mid' : 'low');
+      let html = '<div class="matrix-cell">';
+      html += `<div class="mc-main">${cell.active} <span class="badge-renew ${rc}">${rate}%</span></div>`;
+      html += '<div class="mc-pills">';
+      subjs.forEach(s => {
+        const n = (cell.subjects||{})[s] || 0;
+        if (n > 0) html += `<span class="subj-pill ${subjKey[s]}">${subjLabel[s]} ${n}</span>`;
+      });
+      html += '</div>';
+      html += `<div class="mc-meta"><span>UV ${cell.uv||0}</span><span>·</span><span>班 ${cell.class_count||0}</span></div>`;
+      html += '</div>';
+      return html;
+    }
+
+    function totalHTML(tot) {
+      if (!tot || !tot.active) return '<div class="matrix-cell chill">—</div>';
+      const rate = tot.renewal_rate || 0;
+      const rc = rate >= 10 ? 'high' : (rate >= 5 ? 'mid' : 'low');
+      let html = '<div class="matrix-cell">';
+      html += `<div class="mc-main">${tot.active} <span class="badge-renew ${rc}">${rate}%</span></div>`;
+      html += '<div class="mc-pills">';
+      subjs.forEach(s => {
+        const n = (tot.subjects||{})[s] || 0;
+        if (n > 0) html += `<span class="subj-pill ${subjKey[s]}">${subjLabel[s]} ${n}</span>`;
+      });
+      html += '</div>';
+      html += `<div class="mc-meta"><span>UV ${tot.uv||0}</span><span>·</span><span>班 ${tot.class_count||0}</span></div>`;
+      html += '</div>';
+      return html;
+    }
+
+    let html = '<table class="matrix-table"><thead><tr><th class="row-label">教学点</th>';
+    periods.forEach(p => html += `<th>${p}</th>`);
+    html += '<th>合计</th></tr></thead><tbody>';
+
+    pts.forEach(pt => {
+      html += `<tr><td class="row-label">${pt}</td>`;
+      periods.forEach(p => {
+        html += `<td>${cellHTML((matrix[pt]||{})[p])}</td>`;
+      });
+      html += `<td style="background:#f3f4f6">${totalHTML(ptTotals[pt])}</td></tr>`;
+    });
+
+    // 期次合计行
+    html += '<tr class="total-row"><td class="row-label">合计</td>';
+    periods.forEach(p => { html += `<td>${totalHTML(periodTotals[p])}</td>`; });
+    html += `<td>${totalHTML(grand)}</td></tr>`;
+
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch(err) {
+    el.innerHTML = `<div class="empty-state">加载失败: ${err.message}</div>`;
+  }
+}
+
+/* ════════════════════════════════════════════
+   2. 排班看板 — 期次多选 + 学员标签
+   ════════════════════════════════════════════ */
+function renderSchedulePeriodChips() {
+  renderPeriodChips('schedulePeriodChips', schedulePeriods, PERIOD_ORDER, 'onSchedulePeriodClick', '全部');
+}
+
+function onSchedulePeriodClick(period) {
+  if (!period) {
+    schedulePeriods.clear();
+  } else if (schedulePeriods.has(period)) {
+    schedulePeriods.delete(period);
+  } else {
+    schedulePeriods.add(period);
+  }
+  renderSchedulePeriodChips();
+  loadSchedule();
+}
+
+function onScheduleFilterChange() {
+  schedulePt = document.getElementById('scheduleFilterPt').value;
+  loadSchedule();
+}
+
+async function loadSchedule() {
+  const grid = document.getElementById('classGrid');
+  grid.innerHTML = '加载中…';
+  try {
+    const qs = buildScheduleParams();
+    const url = '/api/overview/classes' + (qs ? '?' + qs : '');
+    const data = await api(url);
+    classData = data;
+    const pts = data.teaching_points || [];
+
+    // 教学点 tabs (sync with schedulePt)
+    const tabsEl = document.getElementById('ptTabs');
+    tabsEl.innerHTML = `<button class="pt-tab ${schedulePt===''?'active':''}" onclick="filterSchedule('')">全部 (${data.total_classes||0}班)</button>`;
+    pts.forEach(pt => {
+      const n = (data.classes_by_point||{})[pt]?.length || 0;
+      tabsEl.innerHTML += `<button class="pt-tab ${schedulePt===pt?'active':''}" onclick="filterSchedule('${pt}')">${pt} (${n})</button>`;
+    });
+
+    renderClassCards(data, schedulePt);
+  } catch(err) {
+    grid.innerHTML = `<div class="empty-state">加载失败: ${err.message}</div>`;
+  }
+}
+
+function filterSchedule(pt) {
+  schedulePt = pt;
+  // sync teaching point dropdown
+  const ptSel = document.getElementById('scheduleFilterPt');
+  if (ptSel) ptSel.value = pt;
+  // update active tab
+  document.querySelectorAll('#ptTabs .pt-tab').forEach(b => {
+    const t = b.textContent.split(' (')[0];
+    b.classList.toggle('active', t === (pt||'全部'));
+  });
+  if (classData) renderClassCards(classData, pt);
+}
+
+function renderClassCards(data, ptFilter) {
+  const grid = document.getElementById('classGrid');
+  let classes = [];
+  const bp = data.classes_by_point || {};
+  if (ptFilter && bp[ptFilter]) classes = bp[ptFilter];
+  else if (!ptFilter) { Object.values(bp).forEach(arr => classes = classes.concat(arr)); }
+  else { classes = bp[ptFilter]||[]; }
+
+  if (classes.length === 0) {
+    grid.innerHTML = '<div class="empty-state">该教学点暂无班级</div>';
+    return;
+  }
+
+  const sc = {'雪球思维':'sx','悦读创作':'yd','双语素养':'sy'};
+  grid.innerHTML = classes.map(c => {
+    const students = c.students || [];
+    const renewRate = c.active_count > 0 ? Math.round((c.renewed_count||0) / c.active_count * 100) : 0;
+    const rateColor = renewRate >= 50 ? '#389e0d' : (renewRate >= 25 ? '#f57c00' : '#e8453c');
+    const maxShow = 5;
+    let tagsHtml = '';
+    if (students.length > 0) {
+      const show = students.slice(0, maxShow);
+      const hidden = students.slice(maxShow);
+      tagsHtml = '<div class="student-tags">';
+      show.forEach(s => {
+        const rnCls3 = s.is_renewed ? ' renewed' : '';
+        tagsHtml += `<span class="student-tag${rnCls3}" onclick="event.stopPropagation();showStudentDetail('${s.uid}')" title="${s.name}${s.is_renewed?' (已续)':''}">${s.name}</span>`;
+      });
+      if (hidden.length > 0) {
+        tagsHtml += `<span class="student-tag more" onclick="event.stopPropagation();toggleClassStudents(this,'${c.class_id}','${c.subject}')">+${hidden.length}人</span>`;
+        // Store hidden students as data attribute
+        tagsHtml += `<span style="display:none" class="hidden-tags">${hidden.map(s => `<span class="student-tag${s.is_renewed?' renewed':''}" onclick="event.stopPropagation();showStudentDetail('${s.uid}')" title="${s.name}${s.is_renewed?' (已续)':''}">${s.name}</span>`).join('')}</span>`;
+      }
+      tagsHtml += '</div>';
+    }
+    return `
+    <div class="class-card">
+      <div class="cls-hd">
+        <span class="cls-subj ${sc[c.subject]||''}">${c.subject}</span>
+        <span class="cls-id">${c.class_id}</span>
+      </div>
+      <div class="cls-row">
+        <span>📅 ${c.period||'-'}</span><span class="sep">|</span>
+        <span>👨‍🏫 ${c.teacher||'-'}</span>
+      </div>
+      <div class="cls-row">
+        <span>🕐 ${c.time_slot||'-'}</span><span class="sep">|</span>
+        <span>🏫 ${c.room||'-'}</span><span class="sep">|</span>
+        <span>${c.class_type||'-'}</span>
+      </div>
+      <div class="cls-foot">
+        <span>在读 <strong>${c.active_count||0}</strong></span>
+        <span>续报 <strong class="renew-num">${c.renewed_count||0}</strong></span>
+      </div>
+      <div class="cls-renew-bar">
+        <div class="cls-renew-bar-label">
+          <span>续报率</span>
+          <span class="rate-text" style="color:${rateColor}">${renewRate}%</span>
+        </div>
+        <div class="cls-renew-track">
+          <div class="cls-renew-fill" style="width:${renewRate}%;background:linear-gradient(90deg,${rateColor}99,${rateColor})"></div>
+        </div>
+      </div>
+      ${tagsHtml}
+    </div>`;
+  }).join('');
+}
+
+function toggleClassStudents(el, classId, subject) {
+  const hidden = el.nextElementSibling;
+  if (!hidden) return;
+  if (hidden.style.display === 'none') {
+    hidden.style.display = 'inline';
+    el.textContent = '收起';
+  } else {
+    hidden.style.display = 'none';
+    const count = hidden.querySelectorAll('.student-tag').length;
+    el.textContent = '+' + count + '人';
+  }
+}
+
+function toggleTeacherClassStudents(el) {
+  const hidden = el.nextElementSibling;
+  if (!hidden) return;
+  if (hidden.style.display === 'none') {
+    hidden.style.display = 'contents';
+    el.textContent = '收起';
+  } else {
+    hidden.style.display = 'none';
+    const count = hidden.querySelectorAll('.student-tag').length;
+    el.textContent = '+' + count + '人';
+  }
+}
+
+/* ════════════════════════════════════════════
+   3. 讲师视图 — 续报率 + 班级学员钻取
+   ════════════════════════════════════════════ */
+function renderTeacherPeriodChips() {
+  renderSinglePeriodChip('teacherPeriodChips', teacherPeriod, PERIOD_ORDER, 'onTeacherPeriodClick', '全部');
+}
+
+function onTeacherPeriodClick(period) {
+  teacherPeriod = period;
+  renderTeacherPeriodChips();
+  loadTeacherList();
+}
+
+function onTeacherFilterChange() {
+  teacherPt = document.getElementById('teacherFilterPt').value;
+  loadTeacherList();
+}
+
+function switchTeacherRankMode(mode) {
+  teacherRankMode = mode;
+  document.getElementById('teacherModeRenew').classList.toggle('active', mode === 'renew');
+  document.getElementById('teacherModeConv').classList.toggle('active', mode === 'conv');
+  renderTeacherList();
+}
+
+function renderTeacherList() {
+  const el = document.getElementById('teacherList');
+  if (teacherListData.length === 0) {
+    el.innerHTML = '<div class="empty-state">暂无讲师数据</div>';
+    return;
+  }
+  const subjMap = {'雪球思维':{cls:'sx',label:'数'},'悦读创作':{cls:'yd',label:'语'},'双语素养':{cls:'sy',label:'英'}};
+  const isConv = teacherRankMode === 'conv';
+
+  const sorted = [...teacherListData].sort((a,b) => {
+    if (isConv) {
+      const aR = (a.should_renew||0) > 0 ? (a.new_renewed||0) / (a.should_renew||0) : 0;
+      const bR = (b.should_renew||0) > 0 ? (b.new_renewed||0) / (b.should_renew||0) : 0;
+      return bR - aR;
+    } else {
+      const aR = a.active_count > 0 ? a.renewed_count / a.active_count : 0;
+      const bR = b.active_count > 0 ? b.renewed_count / b.active_count : 0;
+      return bR - aR;
+    }
+  });
+
+  el.innerHTML = sorted.map(t => {
+    const shouldRenew = t.should_renew || (t.active_count - (t.pre_renewed||0));
+    const totalRenewed = t.total_renewed || (t.renewed_count||0);
+    const newRenewed = t.new_renewed || 0;
+
+    // Rate calculation based on mode
+    const rate = isConv
+      ? (shouldRenew > 0 ? Math.round(newRenewed / shouldRenew * 100) : 0)
+      : (t.active_count > 0 ? Math.round(t.renewed_count / t.active_count * 100) : 0);
+
+    const rc = rate >= 25 ? 'high' : (rate >= 15 ? 'mid' : 'low');
+    const barWidth = Math.min(rate, 100);
+    const subjPills = (t.subjects||[]).map(s => {
+      const m = subjMap[s] || {cls:'',label:s.slice(0,1)};
+      return `<span class="tch-subj-pill ${m.cls}">${m.label}</span>`;
+    }).join('');
+    return `
+    <div class="teacher-item${teacherFilterTeachers.has(t.name)?' active':''}" onclick="viewTeacher('${t.name}')">
+      <div class="tch-top">
+        <span class="tch-name"><span class="tch-subj-inline">${subjPills}</span>${t.name}</span>
+        <span class="tch-rate badge-renew ${rc}">${rate}%</span>
+      </div>
+      <div class="tch-rate-bar"><div class="tch-rate-fill ${rc}" style="width:${barWidth}%"></div></div>
+      <div class="rank-stat-row">
+        <div class="rank-stat-cell"><div class="rs-label">在读</div><div class="rs-val">${t.active_count||0}</div></div>
+        <div class="rank-stat-cell"><div class="rs-label">应续</div><div class="rs-val">${shouldRenew}</div></div>
+        <div class="rank-stat-cell"><div class="rs-label">当期转化</div><div class="rs-val accent">${newRenewed}</div></div>
+        <div class="rank-stat-cell"><div class="rs-label">已续费</div><div class="rs-val">${totalRenewed}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  if (teacherListData.length === 0) el.innerHTML = '<div class="empty-state">暂无讲师数据</div>';
+}
+
+async function loadTeacherList() {
+  const el = document.getElementById('teacherList');
+  el.innerHTML = '加载中…';
+  try {
+    const qs = buildTeacherParams();
+    const url = '/api/overview/teacher-list' + (qs ? '?' + qs : '');
+    const data = await api(url);
+    teacherListData = data.teachers || [];
+    renderTeacherList();
+    if (teacherListData.length === 0) el.innerHTML = '<div class="empty-state">暂无讲师数据</div>';
+    // 如果老师下拉选了具体老师，自动展示其详情；否则刷新当前讲师详情
+    if (teacherFilterTeachers.size === 1 && teacherListData.length === 1) {
+      viewTeacher(teacherListData[0].name);
+    } else if (currentTeacher && teacherListData.some(t => t.name === currentTeacher)) {
+      viewTeacher(currentTeacher);
+    }
+  } catch(err) {
+    el.innerHTML = `<div class="empty-state">加载失败</div>`;
+  }
+}
+
+async function viewTeacher(name) {
+  document.querySelectorAll('.teacher-item').forEach(el => {
+    el.classList.toggle('active', el.querySelector('.tch-name')?.textContent === name);
+  });
+  currentTeacher = name;
+  try {
+    const qs = buildTeacherParams();
+    const data = await api('/api/overview/teacher/'+encodeURIComponent(name) + (qs ? '?' + qs : ''));
+    const det = document.getElementById('teacherDetail');
+    const rate = data.total_active > 0 ? Math.round(data.total_renewed / data.total_active * 100) : 0;
+    const teacherSubjects = [...new Set((data.classes||[]).map(c => c.subject))];
+    const subjMap2 = {'雪球思维':{cls:'sx',label:'数'},'悦读创作':{cls:'yd',label:'语'},'双语素养':{cls:'sy',label:'英'}};
+    const teacherSubjPills = teacherSubjects.map(s => {
+      const m = subjMap2[s] || {cls:'',label:s.slice(0,1)};
+      return `<span class="tch-subj-pill ${m.cls}">${m.label}</span>`;
+    }).join('');
+
+    let html = `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div>
+        <h3 style="font-size:17px;margin:0 0 6px;display:flex;align-items:center;gap:8px">${data.teacher}<span style="display:inline-flex;gap:4px">${teacherSubjPills}</span></h3>
+        <div class="tch-detail-meta">
+          <span>班级 <strong>${data.total_classes||0}</strong></span>
+          <span>在读 <strong>${data.total_active||0}</strong></span>
+          <span>续报 <strong>${data.total_renewed||0}</strong></span>
+          <span>续报率 <strong style="color:${rate>=10?'#389e0d':(rate>=5?'#f57c00':'#e8453c')}">${rate}%</strong></span>
+        </div>
+      </div>
+      <button class="export-btn" onclick="exportTeacherStudents()" title="导出学员名单">📥 导出</button>
+    </div>`;
+
+    if (data.by_teaching_point) {
+      html += '<div style="margin-bottom:14px;font-size:12px;color:#666">';
+      Object.entries(data.by_teaching_point).forEach(([pt,n]) => {
+        html += `<span class="tag tag-gray" style="margin-right:8px">${pt} ${n}</span>`;
+      });
+      html += '</div>';
+    }
+
+    // 班级卡片（按期次分组）
+    const classes = data.classes || [];
+    const students = data.students || [];
+    // 按 (class_id, subject) 分组学员
+    const classStudents = {};
+    students.forEach(s => {
+      const k = s.class_id + '|' + s.subject;
+      if (!classStudents[k]) classStudents[k] = [];
+      classStudents[k].push(s);
+    });
+
+    if (classes.length > 0) {
+      const sc = {'雪球思维':'sx','悦读创作':'yd','双语素养':'sy'};
+      const subjLabels = {'雪球思维': ['搭班语文', '搭班英语'], '悦读创作': ['搭班数学', '搭班英语'], '双语素养': ['搭班数学', '搭班语文']};
+      const subjKeys  = {'雪球思维': ['chinese_teacher','english_teacher'], '悦读创作': ['math_teacher','english_teacher'], '双语素养': ['math_teacher','chinese_teacher']};
+      const periodOrder = PERIOD_ORDER;
+      // 按期次分组
+      const byPeriod = {};
+      classes.forEach(c => {
+        const p = c.period || '其他';
+        if (!byPeriod[p]) byPeriod[p] = [];
+        byPeriod[p].push(c);
+      });
+
+      periodOrder.forEach(p => {
+        const clist = byPeriod[p] || [];
+        if (clist.length === 0) return;
+        html += `<div style="margin-top:14px"><div style="font-size:14px;font-weight:600;color:#333;margin-bottom:8px">${p}（${clist.length}班）</div>`;
+        html += '<div class="teacher-class-grid">';
+        clist.forEach(c => {
+          const k = c.class_id + '|' + c.subject;
+          const stu = classStudents[k] || [];
+          const renewRate = c.active_count > 0 ? Math.round((c.renewed_count||0) / c.active_count * 100) : 0;
+          const rateColor = renewRate >= 50 ? '#389e0d' : (renewRate >= 25 ? '#f57c00' : '#e8453c');
+          const maxShow = 5;
+          const coK = subjKeys[c.subject] || ['chinese_teacher','english_teacher'];
+          const coL = subjLabels[c.subject] || ['搭班语文','搭班英语'];
+          // 取第一个学员的搭班信息
+          const firstStu = stu[0] || {};
+          const co1 = firstStu[coK[0]] || '-';
+          const co2 = firstStu[coK[1]] || '-';
+
+          let tagsHtml = '';
+          if (stu.length > 0) {
+            const show = stu.slice(0, maxShow);
+            const hidden = stu.slice(maxShow);
+            tagsHtml = '<div class="student-tags">';
+            show.forEach(s => {
+              const rnCls2 = s.is_renewed ? ' renewed' : '';
+              tagsHtml += `<span class="student-tag${rnCls2}" onclick="event.stopPropagation();showStudentDetail('${s.uid}')" title="${s.name}${s.is_renewed?' (已续)':''}">${s.name}</span>`;
+            });
+            if (hidden.length > 0) {
+              tagsHtml += `<span class="student-tag more" onclick="event.stopPropagation();toggleTeacherClassStudents(this)">+${hidden.length}人</span>`;
+              tagsHtml += `<span style="display:none" class="hidden-tags">${hidden.map(s => `<span class="student-tag${s.is_renewed?' renewed':''}" onclick="event.stopPropagation();showStudentDetail('${s.uid}')" title="${s.name}${s.is_renewed?' (已续)':''}">${s.name}</span>`).join('')}</span>`;
+            }
+            tagsHtml += '</div>';
+          }
+
+          html += `<div class="class-card">
+            <div class="cls-hd">
+              <span class="cls-subj ${sc[c.subject]||''}">${c.subject}</span>
+              <span class="cls-id">${c.class_id}</span>
+            </div>
+            <div class="cls-row">
+              <span>📅 ${c.period||'-'}</span><span class="sep">|</span>
+              <span>🕐 ${c.time_slot||'-'}</span>
+            </div>
+            <div class="cls-row">
+              <span>🏫 ${c.room||'-'}</span><span class="sep">|</span>
+              <span>${c.class_type||'-'}</span><span class="sep">|</span>
+              <span>${c.teaching_point||''}</span>
+            </div>
+            <div class="cls-row" style="font-size:11px;color:#999">
+              ${coL[0]}: ${co1} ｜ ${coL[1]}: ${co2}
+            </div>
+            <div class="cls-foot">
+              <span>在读 <strong>${c.active_count||0}</strong></span>
+              <span>续报 <strong class="renew-num">${c.renewed_count||0}</strong></span>
+            </div>
+            <div class="cls-renew-bar">
+              <div class="cls-renew-bar-label">
+                <span>续报率</span>
+                <span class="rate-text" style="color:${rateColor}">${renewRate}%</span>
+              </div>
+              <div class="cls-renew-track">
+                <div class="cls-renew-fill" style="width:${renewRate}%;background:linear-gradient(90deg,${rateColor}99,${rateColor})"></div>
+              </div>
+            </div>
+            ${tagsHtml}
+          </div>`;
+        });
+        html += '</div></div>';
+      });
+
+    } else {
+    html += '<div class="empty-state">暂无班级数据</div>';
+    }
+
+    // 学员名单表格（班级卡片下方）
+    if (students.length > 0) {
+      const subjLabels = {'雪球思维': ['搭班语文', '搭班英语'], '悦读创作': ['搭班数学', '搭班英语'], '双语素养': ['搭班数学', '搭班语文']};
+      const subjKeys  = {'雪球思维': ['chinese_teacher','english_teacher'], '悦读创作': ['math_teacher','english_teacher'], '双语素养': ['math_teacher','chinese_teacher']};
+      // 用该老师的主要学科确定搭班列标题
+      const teacherSubj = classes.length > 0 ? classes[0].subject : (students[0]?.subject || '');
+      const coHeaders = subjLabels[teacherSubj] || ['搭班语文','搭班英语'];
+      const coKeys = subjKeys[teacherSubj] || ['chinese_teacher','english_teacher'];
+      html += '<div style="font-size:13px;font-weight:600;color:#666;margin:16px 0 8px">学员名单（共 ' + students.length + ' 人）</div>';
+      html += '<div style="overflow-x:auto"><table class="teacher-student-table"><thead><tr>';
+      ['校区','期次','班级ID','上课时间','班型','学生姓名','主讲',coHeaders[0],coHeaders[1],'顾问老师','在读情况','续秋情况'].forEach(h => {
+        html += `<th>${h}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+      students.forEach(s => {
+        const stCls = s.is_active ? 'status-active' : 'status-refund';
+        const rnCls = s.is_renewed ? 'status-active' : '';
+        html += `<tr>
+          <td>${s.teaching_point||''}</td>
+          <td>${s.period||'-'}</td>
+          <td>${s.class_id||'-'}</td>
+          <td>${s.time_slot||'-'}</td>
+          <td>${s.class_type||'-'}</td>
+          <td><span class="clickable" onclick="showStudentDetail('${s.uid}')">${s.name}</span></td>
+          <td>${name}</td>
+          <td>${s[coKeys[0]]||'-'}</td>
+          <td>${s[coKeys[1]]||'-'}</td>
+          <td>${s.advisor||'-'}</td>
+          <td><span class="tag ${stCls}">${s.status||'-'}</span></td>
+          <td><span class="tag ${rnCls}" style="background:#e6f7e6;color:#389e0d">${s.continue_fall||'-'}</span></td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    det.innerHTML = html;
+  } catch(err) {
+    document.getElementById('teacherDetail').innerHTML = `<div class="empty-state">加载失败</div>`;
+  }
+}
+
+async function exportTeacherStudents() {
+  if (!currentTeacher) return;
+  try {
+    const params = new URLSearchParams();
+    if (teacherPeriod) params.set('period', teacherPeriod);
+    if (teacherPt) params.set('teaching_point', teacherPt);
+    const qs = params.toString();
+    const resp = await fetch('/api/overview/teacher/' + encodeURIComponent(currentTeacher) + '/export' + (qs ? '?' + qs : ''));
+    if (!resp.ok) throw new Error('导出失败');
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentTeacher + '_学员名单.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(err) {
+    alert('导出失败: ' + err.message);
+  }
+}
+
+/* ════════════════════════════════════════════
+   3b. 顾问视图 — 转化排行 + 学员钻取
+   ════════════════════════════════════════════ */
+let advisorListData = [];
+let currentAdvisor = null;
+let advisorMode = 'uv'; // 'uv' or 'pv'
+let advisorRankMode = 'renew';  // 'renew' or 'conv'
+
+function renderAdvisorPeriodChips() {
+  // 顾问：全部数据 + 各期次（单选）
+  const el = document.getElementById('advisorPeriodChips');
+  if (!el) return;
+  const periods = PERIOD_ORDER;
+  let html = `<span class="period-chip ${advisorPeriod===''?'active':''}" onclick="onAdvisorPeriodClick('')">全部数据</span>`;
+  periods.forEach(p => {
+    html += `<span class="period-chip ${advisorPeriod===p?'active':''}" onclick="onAdvisorPeriodClick('${p}')">${p}</span>`;
+  });
+  el.innerHTML = html;
+}
+
+function onAdvisorPeriodClick(period) {
+  advisorPeriod = period;
+  renderAdvisorPeriodChips();
+  loadAdvisorList();
+}
+
+function onAdvisorFilterChange() {
+  advisorPt = document.getElementById('advisorFilterPt').value;
+  loadAdvisorList();
+}
+
+async function loadAdvisorList() {
+  const el = document.getElementById('advisorList');
+  el.innerHTML = '加载中…';
+  try {
+    const qs = buildAdvisorParams();
+    const url = '/api/overview/advisor-list' + (qs ? '?' + qs : '');
+    const data = await api(url);
+    advisorListData = data.advisors || [];
+    renderAdvisorPeriodChips();
+    renderAdvisorList();
+    // 如果当前有选中的顾问，刷新详情
+    if (currentAdvisor) {
+      viewAdvisor(currentAdvisor);
+    }
+  } catch(err) {
+    el.innerHTML = `<div class="empty-state">加载失败: ${err.message}</div>`;
+  }
+}
+
+function switchAdvisorRankMode(mode) {
+  advisorRankMode = mode;
+  document.getElementById('advisorModeRenew').classList.toggle('active', mode === 'renew');
+  document.getElementById('advisorModeConv').classList.toggle('active', mode === 'conv');
+  renderAdvisorList();
+}
+
+function renderAdvisorList() {
+  const el = document.getElementById('advisorList');
+  if (advisorListData.length === 0) {
+    el.innerHTML = '<div class="empty-state">暂无顾问数据</div>';
+    return;
+  }
+  const usePV = advisorMode === 'pv';
+  const isConv = advisorRankMode === 'conv';
+
+  const sorted = [...advisorListData].sort((a,b) => {
+    if (isConv) {
+      const aSR = usePV ? (a.pv_should_renew||0) : (a.should_renew||0);
+      const bSR = usePV ? (b.pv_should_renew||0) : (b.should_renew||0);
+      const aN = usePV ? (a.pv_new_renewed||0) : (a.new_renewed||0);
+      const bN = usePV ? (b.pv_new_renewed||0) : (b.new_renewed||0);
+      const aR = aSR > 0 ? aN / aSR * 100 : 0;
+      const bR = bSR > 0 ? bN / bSR * 100 : 0;
+      return bR - aR;
+    } else {
+      const aActive = usePV ? a.pv_active : a.active;
+      const aTotal = usePV ? (a.pv_total_renewed ?? (a.pv_pre_renewed + a.pv_new_renewed)) : (a.total_renewed ?? (a.pre_renewed + a.new_renewed));
+      const bActive = usePV ? b.pv_active : b.active;
+      const bTotal = usePV ? (b.pv_total_renewed ?? (b.pv_pre_renewed + b.pv_new_renewed)) : (b.total_renewed ?? (b.pre_renewed + b.new_renewed));
+      const aR = aActive > 0 ? aTotal / aActive * 100 : 0;
+      const bR = bActive > 0 ? bTotal / bActive * 100 : 0;
+      return bR - aR;
+    }
+  });
+
+  el.innerHTML = sorted.map(a => {
+    const active = usePV ? a.pv_active : a.active;
+    const shouldRenew = usePV ? (a.pv_should_renew||0) : (a.should_renew||0);
+    const newRenewed = usePV ? (a.pv_new_renewed||0) : (a.new_renewed||0);
+    const totalRenewed = usePV ? (a.pv_total_renewed ?? (a.pv_pre_renewed + a.pv_new_renewed)) : (a.total_renewed ?? (a.pre_renewed + a.new_renewed));
+
+    const rate = isConv
+      ? (shouldRenew > 0 ? Math.round(newRenewed / shouldRenew * 100) : 0)
+      : (active > 0 ? Math.round(totalRenewed / active * 100) : 0);
+
+    const rc = rate >= 25 ? 'high' : (rate >= 15 ? 'mid' : 'low');
+    const barWidth = Math.min(rate, 100);
+    return `
+    <div class="advisor-item${currentAdvisor===a.name?' active':''}" onclick="viewAdvisor('${a.name.replace(/'/g,"\\'")}')">
+      <div class="adv-top">
+        <span class="adv-name">
+          <span class="tch-subj-inline">${advisorPointPill(a.name)}</span>${a.name}
+        </span>
+        <span class="adv-rate badge-renew ${rc}">${rate}%</span>
+      </div>
+      <div class="adv-rate-bar"><div class="fill ${rc}" style="width:${barWidth}%"></div></div>
+      <div class="rank-stat-row">
+        <div class="rank-stat-cell"><div class="rs-label">在读</div><div class="rs-val">${active}</div></div>
+        <div class="rank-stat-cell"><div class="rs-label">应续</div><div class="rs-val">${shouldRenew}</div></div>
+        <div class="rank-stat-cell"><div class="rs-label">当期转化</div><div class="rs-val accent">${newRenewed}</div></div>
+        <div class="rank-stat-cell"><div class="rs-label">已转化</div><div class="rs-val">${totalRenewed}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function viewAdvisor(name) {
+  document.querySelectorAll('.advisor-item').forEach(el => {
+    el.classList.toggle('active', el.querySelector('.adv-name')?.textContent === name);
+  });
+  currentAdvisor = name;
+  const det = document.getElementById('advisorDetail');
+  det.innerHTML = '<div class="placeholder">加载中…</div>';
+  try {
+    const qs = buildAdvisorParams();
+    const data = await api('/api/overview/advisor/' + encodeURIComponent(name) + (qs ? '?' + qs : ''));
+    const usePV = advisorMode === 'pv';
+
+    // Summary stats
+    const totalActive = usePV ? data.students.reduce((s,st)=>s+st.pv_active,0) : data.total_students;
+    const totalNew = usePV ? data.students.reduce((s,st)=>s+st.pv_renewed_new,0) : data.students.filter(s=>s.renew_type==='new').length;
+    const totalPre = usePV ? data.students.reduce((s,st)=>s+st.pv_renewed_pre,0) : data.students.filter(s=>s.renew_type==='pre').length;
+    const totalRenewed = totalNew + totalPre; // 已转化 = 当期转化 + 开课前续报
+    const totalShould = totalActive - totalPre;
+    const rate = totalShould > 0 ? Math.round(totalNew / totalShould * 100) : 0;
+    const rateColor = rate >= 30 ? '#389e0d' : (rate >= 15 ? '#f57c00' : '#e8453c');
+
+    let html = `<div class="adv-detail-header">
+      <div class="adv-detail-title-row">
+        <div>
+          <h3 style="font-size:17px;margin:0 0 6px">${data.advisor}</h3>
+          <div class="adv-detail-desc">${data.all_periods_mode ? '全部数据' : '当期：' + data.current_period} · 应续 = 在读 − 开课前续报 · 当期转化 = 开课后续费 · 已转化 = 全部已续报</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="sub-tab${advisorMode==='uv'?' active':''}" onclick="switchAdvisorMode('uv')" style="font-size:12px;padding:5px 12px">UV</button>
+          <button class="sub-tab${advisorMode==='pv'?' active':''}" onclick="switchAdvisorMode('pv')" style="font-size:12px;padding:5px 12px">PV</button>
+        </div>
+      </div>
+      <div class="adv-stat-cards">
+        <div class="adv-stat-card s-active"><div class="asc-label">在读</div><div class="asc-value">${totalActive}</div></div>
+        <div class="adv-stat-card s-should"><div class="asc-label">应续</div><div class="asc-value">${totalShould}</div></div>
+        <div class="adv-stat-card s-current"><div class="asc-label">当期转化</div><div class="asc-value" style="color:${rateColor}">${totalNew}</div></div>
+        <div class="adv-stat-card s-total"><div class="asc-label">已转化</div><div class="asc-value">${totalRenewed}</div></div>
+        <div class="adv-stat-card s-rate"><div class="asc-label">转化率</div><div class="asc-value" style="color:${rateColor}">${rate}%</div></div>
+      </div>
+    </div>`;
+
+    // Student table
+    const students = data.students || [];
+    if (students.length > 0) {
+      // Sort: new renewals first, then pre, then none
+      students.sort((a,b) => {
+        const order = {'new':0,'pre':1,null:2};
+        return (order[a.renew_type]??2) - (order[b.renew_type]??2);
+      });
+
+      html += `<div style="font-size:13px;font-weight:600;color:#555;margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">学员名单（共 ${students.length} 人）</div>`;
+      html += '<div style="overflow-x:auto"><table class="adv-student-table"><thead><tr>';
+      html += '<th>姓名</th><th>UID</th><th>教学点</th><th>当期科目</th><th>转化状态</th>';
+      if (usePV) {
+        html += '<th>PV应续</th><th>PV当期转化</th>';
+      }
+      html += '</tr></thead><tbody>';
+      const subjClass = {'雪球思维':'sx','悦读创作':'yd','双语素养':'sy'};
+      students.forEach(s => {
+        const activeSubjHtml = s.subject_details
+          .filter(sd => sd.in_current_period && sd.is_active)
+          .map(sd => `<span class="subj-mini ${subjClass[sd.subject]||''}" title="${sd.subject}">${sd.subject_short}</span>`)
+          .join('');
+        let renewBadge = '<span class="adv-renew-badge none">未转化</span>';
+        if (s.renew_type === 'new') renewBadge = '<span class="adv-renew-badge new">当期转化 ✓</span>';
+        else if (s.renew_type === 'pre') renewBadge = '<span class="adv-renew-badge pre">开课前已续</span>';
+        html += `<tr>
+          <td><span class="clickable" onclick="showStudentDetail('${s.uid}')">${s.name}</span></td>
+          <td style="font-size:12px;color:#999">${s.uid}</td>
+          <td>${s.teaching_point||'-'}</td>
+          <td>${activeSubjHtml}</td>
+          <td>${renewBadge}</td>`;
+        if (usePV) {
+          html += `<td>${s.pv_active}</td><td style="font-weight:600;color:${s.pv_renewed_new>0?'#389e0d':'#999'}">${s.pv_renewed_new}</td>`;
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div class="empty-state">暂无学员数据</div>';
+    }
+
+    det.innerHTML = html;
+  } catch(err) {
+    det.innerHTML = `<div class="empty-state">加载失败</div>`;
+  }
+}
+
+function switchAdvisorMode(mode) {
+  advisorMode = mode;
+  renderAdvisorList();
+  if (currentAdvisor) viewAdvisor(currentAdvisor);
+}
+
+/* ════════════════════════════════════════════
+   4. 学员检索 — 视觉优化
+   ════════════════════════════════════════════ */
+async function loadStudentFilters() {
+  try {
+    const data = await api('/api/overview/filters');
+    const f = data.filters || {};
+    ['filterPt','filterPeriod'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.innerHTML = '<option value="">全部</option>';
+    });
+    (f.teaching_points||[]).forEach(v => { const s = document.getElementById('filterPt'); if (s) s.innerHTML += `<option>${v}</option>`; });
+    (f.periods||[]).forEach(v => { const s = document.getElementById('filterPeriod'); if (s) s.innerHTML += `<option>${v}</option>`; });
+    populateMultiSelect('filterTeacher', f.teachers||[], studentTeachers);
+    searchStudents();
+  } catch(err) {
+    document.getElementById('studentTable').innerHTML = `<div class="empty-state">加载筛选器失败</div>`;
+  }
+}
+
+async function searchStudents() {
+  const filters = {};
+  const pt = document.getElementById('filterPt').value;
+  const period = document.getElementById('filterPeriod').value;
+  const status = document.getElementById('filterStatus').value;
+  const continueFall = document.getElementById('filterContinueFall').value;
+  if (pt) filters.teaching_point = pt;
+  if (period) filters.period = period;
+  if (studentTeachers.size > 0) filters.teacher = [...studentTeachers].join(',');
+  if (status) filters.status = status;
+  if (continueFall) filters.continue_fall = continueFall;
+  try {
+    const data = await api('/api/overview/students', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(filters)});
+    allStudents = data.students || [];
+    renderStudentTable(allStudents);
+  } catch(err) {
+    document.getElementById('studentTable').innerHTML = `<div class="empty-state">搜索失败: ${err.message}</div>`;
+  }
+}
+
+function renderStudentTable(students) {
+  const searchText = (document.getElementById('filterSearch')?.value||'').toLowerCase();
+  let list = students;
+  if (searchText) {
+    list = students.filter(s => (s.name||'').toLowerCase().includes(searchText) || (s.uid||'').toLowerCase().includes(searchText));
+  }
+  if (list.length === 0) {
+    document.getElementById('studentTable').innerHTML = '<div class="empty-state">无匹配结果</div>';
+    document.getElementById('studentPager').textContent = '';
+    return;
+  }
+  document.getElementById('studentPager').textContent = `共 ${list.length} 条`;
+  let html = '<table class="student-table"><thead><tr>';
+  ['姓名','UID','教学点','顾问','状态','在读期次','雪球思维','悦读创作','双语素养'].forEach(h => html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  list.forEach(s => {
+    const subjs = s.subjects || {};
+    html += `<tr>
+      <td><span class="clickable" onclick="showStudentDetail('${s.uid}')">${s.name||''}</span></td>
+      <td style="font-size:12px;color:#999">${s.uid||''}</td>
+      <td>${s.teaching_point||''}</td>
+      <td>${s.advisor||''}</td>
+      <td>${statusTag(s.status)}</td>
+      <td style="font-size:12px">${s.period_combined||''}</td>
+      <td style="font-size:12px">${subjBadge(subjs['雪球思维'])}</td>
+      <td style="font-size:12px">${subjBadge(subjs['悦读创作'])}</td>
+      <td style="font-size:12px">${subjBadge(subjs['双语素养'])}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('studentTable').innerHTML = html;
+}
+
+function isContinueFallJS(v) {
+  if (!v) return false;
+  v = String(v).trim();
+  return ['是','已续','T','AC','AL','true','1','√'].includes(v);
+}
+
+function statusTag(status) {
+  if (!status) return '<span class="tag tag-gray">-</span>';
+  const s = String(status);
+  if (s.includes('课前退') || s.includes('退费')) return `<span class="tag tag-red">${s}</span>`;
+  if (s.includes('在读')) return `<span class="tag tag-green">${s}</span>`;
+  return `<span class="tag tag-gray">${s}</span>`;
+}
+
+function subjBadge(sd) {
+  if (!sd || typeof sd !== 'object') return '-';
+  const status = sd.status || '-';
+  const isActive = status.includes('在读');
+  const isRefund = status.includes('退费') || status.includes('课前退');
+  const statusCls = isActive ? 'tag-green' : (isRefund ? 'tag-red' : 'tag-gray');
+  const cfVal = sd.continue_fall || '';
+  const isRenewed = isContinueFallJS(cfVal);
+  let cfTag = '';
+  if (isActive) {
+    cfTag = isRenewed
+      ? '<span class="tag tag-green">已续</span>'
+      : '<span class="tag tag-gray">未续</span>';
+  } else if (isRefund) {
+    cfTag = '<span class="tag tag-orange">退费</span>';
+  }
+  const info = [sd.period || '', sd.teacher || ''].filter(Boolean).join(' ');
+  return `<div class="subj-cell"><span class="tag ${statusCls}">${status}</span><span class="subj-info">${info}</span>${cfTag}</div>`;
+}
+
+async function exportStudents() {
+  const filters = {};
+  const pt = document.getElementById('filterPt').value;
+  const period = document.getElementById('filterPeriod').value;
+  const status = document.getElementById('filterStatus').value;
+  const continueFall = document.getElementById('filterContinueFall').value;
+  if (pt) filters.teaching_point = pt;
+  if (period) filters.period = period;
+  if (studentTeachers.size > 0) filters.teacher = [...studentTeachers].join(',');
+  if (status) filters.status = status;
+  if (continueFall) filters.continue_fall = continueFall;
+  try {
+    const res = await fetch('/api/overview/export', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(filters)});
+    if (!res.ok) throw new Error('导出失败');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'UV台帳_筛选导出.xlsx'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(err) {
+    alert('导出失败: '+err.message);
+  }
+}
+
+/* ════════════════════════════════════════════
+   5. 学员详情弹窗 — 紧凑卡片，仅显示已报名科目
+   ════════════════════════════════════════════ */
+async function showStudentDetail(uid) {
+  try {
+    const data = await api('/api/overview/student/'+uid);
+    const sc = {'雪球思维':'sx','悦读创作':'yd','双语素养':'sy'};
+
+    // 仅显示已报名/曾有记录的科目（含退费），过滤掉完全空白的科目
+    const allSubjects = data.subjects || {};
+    const registered = Object.entries(allSubjects).filter(([subj, sd]) => {
+      if (!sd || typeof sd !== 'object') return false;
+      const keys = ['class_id','teacher','room','time_slot','class_type','period','status','continue_fall'];
+      return keys.some(k => sd[k] && sd[k] !== '-');
+    });
+
+    let html = `<button class="modal-close" onclick="closeModal()">✕</button>`;
+    html += `<h3>${data.name}</h3>`;
+    html += `<div class="modal-meta">`;
+    html += `<span><span class="mm-label">校区</span> ${data.teaching_point||'-'}</span>`;
+    html += `<span><span class="mm-label">顾问</span> ${data.advisor||'-'}</span>`;
+    html += `<span><span class="mm-label">综合期次</span> ${data.period_combined||'-'}</span>`;
+    html += `</div>`;
+    html += '<div class="subj-list">';
+    if (registered.length === 0) {
+      html += '<div style="text-align:center;color:#999;font-size:13px;padding:20px">暂无已报名科目记录</div>';
+    } else {
+      registered.forEach(([subj, sd]) => {
+        const isActive = (sd.status||'').includes('在读');
+        const isRefund = (sd.status||'').includes('退费');
+        const stCls = isActive ? 'tag-green' : (isRefund ? 'tag-red' : 'tag-gray');
+        const sfVal = sd.continue_fall||'-';
+        const isRenewed = sfVal.includes('T')||sfVal.includes('AC')||sfVal.includes('AL')||sfVal==='是';
+        const rnColor = isRenewed ? '#389e0d' : (sfVal==='-'?'#999':'#e8453c');
+
+        html += `<div class="subj-card ${sc[subj]||''}">
+          <div class="subj-hd">
+            <span class="cls-subj ${sc[subj]||''}">${subj}</span>
+            <span class="tag ${stCls}">${sd.status||'-'}</span>
+          </div>
+          <div class="subj-grid">
+            <div><span class="sg-label">班级ID</span><span class="sg-value">${sd.class_id||'-'}</span></div>
+            <div><span class="sg-label">主讲</span><span class="sg-value">${sd.teacher||'-'}</span></div>
+            <div><span class="sg-label">期次</span><span class="sg-value">${sd.period||'-'}</span></div>
+            <div><span class="sg-label">时段</span><span class="sg-value">${sd.time_slot||'-'}</span></div>
+            <div><span class="sg-label">班型</span><span class="sg-value">${sd.class_type||'-'}</span></div>
+            <div><span class="sg-label">教室</span><span class="sg-value">${sd.room||'-'}</span></div>
+            <div><span class="sg-label">续秋</span><span class="sg-value" style="color:${rnColor}">${sfVal}</span></div>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').style.display = 'flex';
+  } catch(err) {
+    alert('加载详情失败');
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+// ── Init ──
+loadMonitor();
+
+// ── 分享卡片 ──
+const SHARE_PERIODS = ['全部', ...PERIOD_ORDER];
+const SHARE_SUBJECTS = ['全部', '数学', '语文', '英语'];
+let sharePointsList = ['全部'];
+let shareTeachersList = ['全部'];
+let shareAdvisorsList = ['全部'];
+let shareState = { period:'全部', point:'全部', subject:'全部', teacher:'全部', advisor:'全部' };
+let shareMetrics = { active:true, uv:true, rate:true, fall_active:false, refund:false, class_count:true, subject:true };
+let shareAdvisorMode = 'uv'; // 'uv' or 'pv' for advisor conversion ranking
+
+async function openShareCard() {
+  const overlay = document.getElementById('shareOverlay');
+  overlay.style.display = 'flex';
+  renderShareFilters();
+  await updateShareCard();
+}
+
+function renderShareFilters() {
+  const chipHTML = (items, key) => items.map(v => {
+    const active = shareState[key] === v;
+    return `<span class="share-chip${active?' active':''}" onclick="setShareFilter('${key}','${v.replace(/'/g,"\\'")}')">${v}</span>`;
+  }).join('');
+
+  const metricItems = [
+    ['active', '在读PV'], ['uv', 'UV'], ['rate', 'PV续报率'], ['fall_active', '秋季在读PV'],
+    ['refund', '退费PV'], ['class_count', '班级数'], ['subject', '分学科']
+  ];
+  const metricHTML = metricItems.map(([k, label]) => {
+    const active = shareMetrics[k];
+    return `<span class="share-chip${active?' active':''}" onclick="toggleShareMetric('${k}')">${active?'✓ ':''}${label}</span>`;
+  }).join('');
+
+  document.getElementById('shareFilters').innerHTML = `
+    <div class="share-group"><div class="share-label">期次</div><div class="share-chips">${chipHTML(SHARE_PERIODS,'period')}</div></div>
+    <div class="share-group"><div class="share-label">教学点</div><div class="share-chips">${chipHTML(sharePointsList,'point')}</div></div>
+    <div class="share-group"><div class="share-label">学科</div><div class="share-chips">${chipHTML(SHARE_SUBJECTS,'subject')}</div></div>
+    <div class="share-group"><div class="share-label">老师</div><div class="share-chips share-chips-wrap">${chipHTML(shareTeachersList,'teacher')}</div></div>
+    <div class="share-group"><div class="share-label">顾问</div><div class="share-chips share-chips-wrap">${chipHTML(shareAdvisorsList,'advisor')}</div></div>
+    <div class="share-group"><div class="share-label">卡片指标</div><div class="share-chips share-chips-wrap">${metricHTML}</div></div>
+  `;
+}
+
+function setShareFilter(key, val) {
+  shareState[key] = val;
+  renderShareFilters();
+  updateShareCard();
+}
+
+function toggleShareMetric(key) {
+  shareMetrics[key] = !shareMetrics[key];
+  renderShareFilters();
+  updateShareCard();
+}
+
+function setShareAdvisorMode(mode) {
+  shareAdvisorMode = mode;
+  updateShareCard();
+}
+
+async function updateShareCard() {
+  const params = new URLSearchParams();
+  if (shareState.period !== '全部') params.set('period', shareState.period);
+  if (shareState.point !== '全部') params.set('teaching_point', shareState.point);
+  const subjMap = {'数学':'雪球思维','语文':'悦读创作','英语':'双语素养'};
+  if (shareState.subject !== '全部') params.set('subject', subjMap[shareState.subject] || shareState.subject);
+  if (shareState.teacher !== '全部') params.set('teacher', shareState.teacher);
+  if (shareState.advisor !== '全部') params.set('advisor', shareState.advisor);
+
+  document.getElementById('shareCardPreview').innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:13px">加载中…</div>';
+
+  try {
+    const data = await api('/api/share-card?' + params.toString());
+    if (data.available_teachers && data.available_teachers.length > 0) {
+      shareTeachersList = ['全部', ...data.available_teachers];
+    }
+    if (data.available_points && data.available_points.length > 0) {
+      sharePointsList = ['全部', ...data.available_points];
+    }
+    if (data.available_advisors && data.available_advisors.length > 0) {
+      shareAdvisorsList = ['全部', ...data.available_advisors];
+    }
+    renderShareFilters();
+    renderShareCard(data);
+  } catch(e) {
+    document.getElementById('shareCardPreview').innerHTML = '<div style="text-align:center;padding:40px;color:#e8453c;font-size:13px">加载失败</div>';
+  }
+}
+
+function rateColor(rate) {
+  if (rate >= 60) return '#1D9E75';
+  if (rate >= 50) return '#378ADD';
+  if (rate >= 45) return '#639922';
+  return '#BA7517';
+}
+
+// 配色体系
+const SC = {
+  primary: '#2D3142',    // 主文字
+  secondary: '#6C7293',  // 次要文字
+  muted: '#A0A3BD',      // 弱化文字
+  bg: '#F7F8FA',         // 卡片背景
+  border: '#E8E9F0',     // 边框
+  accent: '#4F6BED',     // 主强调
+  green: '#1D9E75',
+  blue: '#378ADD',
+  orange: '#E8943B',
+  red: '#E8505B',
+  purple: '#8B5CF6',
+};
+
+function renderShareCard(data) {
+  const k = data.kpi;
+  const f = data.filters;
+  const dateStr = (data.run_time || '').substring(0, 10);
+
+  // KPI 区
+  const kpiItems = [];
+  if (shareMetrics.active) kpiItems.push({label:'在读PV', value:k.active_pv, color:SC.blue});
+  if (shareMetrics.uv) kpiItems.push({label:'在读UV', value:k.uv, color:SC.green});
+  if (shareMetrics.rate) kpiItems.push({label:'PV续报率', value:k.renewal_rate+'%', color:rateColor(k.renewal_rate)});
+  if (shareMetrics.fall_active) kpiItems.push({label:'秋季在读PV', value:k.renewal_pv, color:'#0D9488'});
+  if (shareMetrics.refund) kpiItems.push({label:'退费PV', value:k.refund_pv, color:SC.red});
+  if (shareMetrics.class_count) kpiItems.push({label:'班级数', value:k.class_count, color:SC.orange});
+
+  const kpiDotColors = {
+    '在读PV': SC.blue, '在读UV': SC.green, 'PV续报率': SC.accent,
+    '秋季在读PV': '#0D9488', '退费PV': SC.red, '班级数': SC.orange
+  };
+  const kpiHTML = kpiItems.length > 0 ? `
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(kpiItems.length,5)},1fr);gap:10px;margin-bottom:22px">
+      ${kpiItems.map(it => {
+        const dotColor = kpiDotColors[it.label] || '#888';
+        return `
+        <div style="background:${SC.bg};border-radius:10px;padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${dotColor}"></span>
+            <span style="font-size:12px;color:${SC.secondary}">${it.label}</span>
+          </div>
+          <div style="font-size:22px;font-weight:600;color:${it.color}">${it.value}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  ` : '';
+
+  // 分教学点表格
+  let pointHTML = '';
+  if (data.by_point.length > 0) {
+    const thStyle = 'text-align:center;padding:8px 6px;font-weight:500;color:'+SC.secondary+';font-size:12px;white-space:nowrap';
+    const tdStyle = 'text-align:center;padding:8px 6px;color:'+SC.primary+';font-size:13px;white-space:nowrap';
+    pointHTML = `
+      <div style="font-size:11px;color:${SC.muted};letter-spacing:0.5px;margin-bottom:8px;font-weight:500">分教学点</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:22px">
+        <thead><tr style="border-bottom:2px solid ${SC.border}">
+          <th style="${thStyle};text-align:left">教学点</th>
+          <th style="${thStyle}">在读PV</th>
+          <th style="${thStyle}">在读UV</th>
+          <th style="${thStyle}">班级数</th>
+          <th style="${thStyle}">续费PV</th>
+          <th style="${thStyle}">续费UV</th>
+          <th style="${thStyle}">PV续报率</th>
+          <th style="${thStyle}">UV续报率</th>
+        </tr></thead>
+        <tbody>
+          ${data.by_point.map(p => `
+            <tr style="border-bottom:1px solid ${SC.border}">
+              <td style="${tdStyle};text-align:left;font-weight:500">${p.name}</td>
+              <td style="${tdStyle}">${p.active}</td>
+              <td style="${tdStyle}">${p.uv}</td>
+              <td style="${tdStyle}">${p.class_count}</td>
+              <td style="${tdStyle}">${p.renewed}</td>
+              <td style="${tdStyle}">${p.renewed_uv}</td>
+              <td style="${tdStyle};font-weight:600;color:${rateColor(p.renewal_rate)}">${p.renewal_rate}%</td>
+              <td style="${tdStyle};font-weight:600;color:${rateColor(p.renewal_uv_rate)}">${p.renewal_uv_rate}%</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // 分学科
+  let subjectHTML = '';
+  if (shareMetrics.subject && data.by_subject.length > 0) {
+    subjectHTML = `
+      <div style="font-size:11px;color:${SC.muted};letter-spacing:0.5px;margin-bottom:8px;font-weight:500">分学科</div>
+      <div style="display:grid;grid-template-columns:repeat(${Math.min(data.by_subject.length,3)},1fr);gap:10px;margin-bottom:22px">
+        ${data.by_subject.map(s => `
+          <div style="background:${SC.bg};border-radius:10px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${s.color}"></span>
+              <span style="font-size:12px;color:${SC.secondary}">${s.name}</span>
+            </div>
+            <div style="font-size:22px;font-weight:600;color:${rateColor(s.renewal_rate)}">${s.renewal_rate}%</div>
+            <div style="font-size:11px;color:${SC.muted};margin-top:2px">续费 ${s.renewed} / 在读 ${s.active}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // 老师排行（全部展示）
+  let teacherHTML = '';
+  const showTeacherSection = shareState.teacher === '全部';
+  if (showTeacherSection && data.by_teacher.length > 0) {
+    const thC = 'text-align:center;padding:7px 6px;font-weight:500;color:'+SC.secondary+';font-size:12px;white-space:nowrap';
+    const tdC = 'text-align:center;padding:8px 6px;color:'+SC.primary+';font-size:13px;white-space:nowrap';
+    teacherHTML = `
+      <div style="font-size:11px;color:${SC.muted};letter-spacing:0.5px;margin-bottom:8px;font-weight:500">老师续报率排行</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:22px">
+        <thead><tr style="border-bottom:2px solid ${SC.border}">
+          <th style="${thC};text-align:left;padding-left:12px">姓名</th>
+          <th style="${thC}">在读</th>
+          <th style="${thC}">已续报</th>
+          <th style="${thC}">续报率</th>
+          <th style="${thC};width:35%">进度</th>
+        </tr></thead>
+        <tbody>
+          ${data.by_teacher.map(t => `
+            <tr style="border-bottom:1px solid ${SC.border}">
+              <td style="${tdC};text-align:left;padding-left:12px;font-weight:500;white-space:nowrap">${t.name}</td>
+              <td style="${tdC}">${t.active}</td>
+              <td style="${tdC}">${t.renewed}</td>
+              <td style="${tdC};font-weight:600;color:${rateColor(t.renewal_rate)}">${t.renewal_rate}%</td>
+              <td style="${tdC}">
+                <div style="background:${SC.border};border-radius:4px;height:7px;overflow:hidden">
+                  <div style="width:${Math.round(t.renewal_rate)}%;height:100%;background:${rateColor(t.renewal_rate)};border-radius:4px"></div>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // 顾问转化排行（选具体顾问时隐藏，与老师排行逻辑一致）
+  let advisorHTML = '';
+  const showAdvisorSection = shareState.advisor === '全部';
+  if (showAdvisorSection && data.by_advisor && data.by_advisor.length > 0) {
+    const ap = data.advisor_current_period || '当期';
+    const usePV = shareAdvisorMode === 'pv';
+    const thA = 'text-align:center;padding:7px 6px;font-weight:500;color:'+SC.secondary+';font-size:12px;white-space:nowrap';
+    const tdA = 'text-align:center;padding:8px 6px;color:'+SC.primary+';font-size:13px;white-space:nowrap';
+    const modeLabel = usePV ? 'PV' : 'UV';
+    const advisorRows = data.by_advisor.map(a => {
+      const active = usePV ? a.pv_active : a.active;
+      const pre = usePV ? a.pv_pre_renewed : a.pre_renewed;
+      const should = usePV ? a.pv_should_renew : a.should_renew;
+      const newRen = usePV ? a.pv_new_renewed : a.new_renewed;
+      const totalRen = usePV ? (a.pv_total_renewed ?? (a.pv_pre_renewed + a.pv_new_renewed)) : (a.total_renewed ?? (a.pre_renewed + a.new_renewed));
+      const rate = usePV ? a.pv_renewal_rate : a.renewal_rate;
+      return {name:a.name, active, pre, should, newRen, totalRen, rate};
+    }).sort((a,b) => b.newRen - a.newRen);
+    advisorHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:11px;color:${SC.muted};letter-spacing:0.5px;font-weight:500">顾问转化排行（${ap}）</span>
+        <span style="font-size:10px;color:${SC.muted};background:${SC.bg};padding:2px 8px;border-radius:4px">应续 = 在读 − 开课前续报 · 当期转化 = 开课后续费 · 已转化 = 全部已续报</span>
+        <span style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid ${SC.border}">
+          <span onclick="setShareAdvisorMode('uv')" style="font-size:10px;font-weight:600;padding:3px 10px;cursor:pointer;${usePV?'color:'+SC.muted+';background:#fff':'color:#fff;background:'+SC.accent}">UV</span>
+          <span onclick="setShareAdvisorMode('pv')" style="font-size:10px;font-weight:600;padding:3px 10px;cursor:pointer;${!usePV?'color:'+SC.muted+';background:#fff':'color:#fff;background:'+SC.accent}">PV</span>
+        </span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:22px">
+        <thead><tr style="border-bottom:2px solid ${SC.border}">
+          <th style="${thA};text-align:left;padding-left:12px">顾问</th>
+          <th style="${thA}">在读${modeLabel}</th>
+          <th style="${thA}">应续</th>
+          <th style="${thA}">当期转化</th>
+          <th style="${thA}">已转化</th>
+          <th style="${thA}">转化率</th>
+          <th style="${thA};width:25%">进度</th>
+        </tr></thead>
+        <tbody>
+          ${advisorRows.map(a => `
+            <tr style="border-bottom:1px solid ${SC.border}">
+              <td style="${tdA};text-align:left;padding-left:12px;font-weight:500;white-space:nowrap">${a.name}</td>
+              <td style="${tdA}">${a.active}</td>
+              <td style="${tdA};font-weight:600">${a.should}</td>
+              <td style="${tdA};font-weight:600;color:${rateColor(a.rate)}">${a.newRen}</td>
+              <td style="${tdA};color:${SC.secondary}">${a.totalRen}</td>
+              <td style="${tdA};font-weight:600;color:${rateColor(a.rate)}">${a.rate}%</td>
+              <td style="${tdA}">
+                <div style="background:${SC.border};border-radius:4px;height:7px;overflow:hidden">
+                  <div style="width:${Math.min(Math.round(a.rate),100)}%;height:100%;background:${rateColor(a.rate)};border-radius:4px"></div>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // 班级续报详情（仅选了具体老师时显示）
+  let classHTML = '';
+  if (data.by_class && data.by_class.length > 0) {
+    const thC = 'text-align:center;padding:7px 6px;font-weight:500;color:'+SC.secondary+';font-size:12px;white-space:nowrap';
+    const tdC = 'text-align:center;padding:8px 6px;color:'+SC.primary+';font-size:13px;white-space:nowrap';
+    classHTML = `
+      <div style="font-size:11px;color:${SC.muted};letter-spacing:0.5px;margin-bottom:8px;font-weight:500">班级续报详情</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:22px">
+        <thead><tr style="border-bottom:2px solid ${SC.border}">
+          <th style="${thC};text-align:left;padding-left:12px">班级编号</th>
+          <th style="${thC}">学科</th>
+          <th style="${thC}">期次</th>
+          <th style="${thC}">在读PV</th>
+          <th style="${thC}">在读UV</th>
+          <th style="${thC}">续费PV</th>
+          <th style="${thC}">续费UV</th>
+          <th style="${thC}">PV续报率</th>
+          <th style="${thC}">UV续报率</th>
+        </tr></thead>
+        <tbody>
+          ${data.by_class.map(c => `
+            <tr style="border-bottom:1px solid ${SC.border}">
+              <td style="${tdC};text-align:left;padding-left:12px;font-weight:500">${c.class_id}</td>
+              <td style="${tdC}">${c.subject}</td>
+              <td style="${tdC}">${c.period}</td>
+              <td style="${tdC}">${c.active}</td>
+              <td style="${tdC}">${c.uv}</td>
+              <td style="${tdC}">${c.renewed}</td>
+              <td style="${tdC}">${c.renewed_uv}</td>
+              <td style="${tdC};font-weight:600;color:${rateColor(c.renewal_rate)}">${c.renewal_rate}%</td>
+              <td style="${tdC};font-weight:600;color:${rateColor(c.renewal_uv_rate)}">${c.renewal_uv_rate}%</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  const titleParts = [];
+  if (f.period !== '全部') titleParts.push(f.period);
+  titleParts.push('数据概览');
+  const title = '26暑新初一 · ' + titleParts.join('');
+
+  const subtitleParts = [];
+  if (f.teaching_point !== '全部') subtitleParts.push(f.teaching_point); else subtitleParts.push('全教学点');
+  if (f.subject !== '全部') subtitleParts.push(f.subject); else subtitleParts.push('全学科');
+  if (f.teacher !== '全部') subtitleParts.push(f.teacher); else subtitleParts.push('全老师');
+  if (f.advisor !== '全部') subtitleParts.push(f.advisor); else subtitleParts.push('全顾问');
+
+  document.getElementById('shareCardPreview').innerHTML = `
+    <div id="shareCardCapture" style="padding:24px;background:transparent">
+      <div style="background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(45,49,66,0.12);padding:28px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px">
+          <div>
+            <div style="font-size:18px;font-weight:600;color:${SC.primary}">${title}</div>
+            <div style="font-size:12px;color:${SC.muted};margin-top:4px">${subtitleParts.join(' · ')}</div>
+          </div>
+          <div style="font-size:11px;color:${SC.muted};background:${SC.bg};padding:4px 10px;border-radius:6px">${dateStr}</div>
+        </div>
+        ${kpiHTML}
+        ${pointHTML}
+        ${subjectHTML}
+        ${classHTML}
+        ${teacherHTML}
+        ${advisorHTML}
+        <div style="border-top:1px solid ${SC.border};margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:${SC.muted}">数据来源：UV台帐校准系统</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function downloadShareCard() {
+  const el = document.getElementById('shareCardCapture');
+  if (!el) return;
+  const btn = document.getElementById('shareDownloadBtn');
+  const orig = btn.textContent;
+  btn.textContent = '生成中…';
+  btn.disabled = true;
+  try {
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: null, useCORS: true });
+    const link = document.createElement('a');
+    link.download = '分享卡片_' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch(e) {
+    alert('生成图片失败：' + e.message);
+  } finally {
+    btn.textContent = orig;
+    btn.disabled = false;
+  }
+}
+
+function closeShareCard() {
+  document.getElementById('shareOverlay').style.display = 'none';
+}
+
+// ── 生成分享链接 ──
+async function generateShareLink() {
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '⏳ 生成中...';
+  btn.disabled = true;
+
+  // 收集当前全部筛选条件
+  const start   = document.getElementById('trendStart')?.value || '';
+  const end     = document.getElementById('trendEnd')?.value || '';
+  const subject = document.getElementById('trendSubject')?.value || '';
+  const point   = document.getElementById('trendPoint')?.value || '';
+  const period  = document.getElementById('trendPeriod')?.value || '';
+  const teacher = document.getElementById('trendTeacher')?.value || '';
+
+  try {
+    const resp = await fetch('/api/share/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        start_date: start,
+        end_date: end,
+        subjects: subject,
+        teaching_points: point,
+        periods: period,
+        teachers: teacher,
+      })
+    });
+    const data = await resp.json();
+
+    if (data.error) {
+      alert('生成失败：' + data.error);
+      return;
+    }
+
+    // 显示分享结果
+    showShareResult(data);
+  } catch (e) {
+    alert('请求失败：' + e.message);
+  } finally {
+    btn.textContent = orig;
+    btn.disabled = false;
+  }
+}
+
+function showShareResult(data) {
+  const existing = document.getElementById('shareResultToast');
+  if (existing) existing.remove();
+
+  const localUrl = window.location.origin + data.local_url;
+  const extUrl = data.deploy_url || '';
+  const shareDir = data.share_dir || '';
+  const shareId = data.share_id || '';
+
+  const toast = document.createElement('div');
+  toast.id = 'shareResultToast';
+  toast.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  toast.innerHTML = `
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:500px;box-shadow:0 12px 40px rgba(0,0,0,0.2);overflow:hidden">
+      <div style="background:linear-gradient(135deg,#1D9E75,#17A86B);padding:20px 24px;color:#fff">
+        <div style="font-size:16px;font-weight:600;margin-bottom:4px">分享链接已生成</div>
+        <div style="font-size:12px;opacity:.85">
+          ${data.periods_available.length}个期次 · ${data.trend_days}天趋势 · ${data.teacher_count}位主讲 · ${data.advisor_count}位顾问
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div id="shareExtSection" style="margin-bottom:16px">
+          ${extUrl ? `
+          <div style="font-size:12px;color:#999;margin-bottom:6px">外部可访问链接</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="shareExtUrlInput" value="${extUrl}" readonly style="flex:1;padding:10px 14px;border:1px solid #E8E9F0;border-radius:8px;font-size:13px;color:#333;background:#fafbfc">
+            <button onclick="copyExtShareUrl()" style="padding:10px 18px;background:#1D9E75;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap">复制外链</button>
+          </div>
+          ` : `
+          <div style="padding:14px;background:#F0F9FF;border-radius:8px;border:1px solid #378ADD;text-align:center">
+            <span style="font-size:13px;color:#1E40AF">外部链接尚未部署，点击下方按钮部署到云端</span>
+          </div>
+          `}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="display:flex;gap:8px">
+            <button onclick="window.open('${localUrl}','_blank')" style="padding:10px 20px;background:#378ADD;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500">🔍 本地预览</button>
+            <button id="cloudDeployBtn" onclick="cloudDeploy('${shareDir}','${shareId}')" style="padding:10px 20px;background:#1D9E75;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500">☁️ 部署到云端</button>
+          </div>
+          <button onclick="document.getElementById('shareResultToast').remove()" style="padding:10px 20px;background:#f5f5f5;border:none;border-radius:8px;cursor:pointer;font-size:13px;color:#666">关闭</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  toast.addEventListener('click', function(e) {
+    if (e.target === toast) toast.remove();
+  });
+}
+
+async function cloudDeploy(shareDir, shareId) {
+  const btn = document.getElementById('cloudDeployBtn');
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = '⏳ 提交中...';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+
+  try {
+    const resp = await fetch('/api/share/deploy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ share_dir: shareDir, share_id: shareId })
+    });
+    const data = await resp.json();
+    if (data.error) {
+      alert('部署失败：' + data.error);
+      btn.textContent = orig;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      return;
+    }
+
+    // 自动部署队列：由系统定时任务处理，通常 1 小时内完成
+    btn.textContent = '⏰ 队列中自动部署';
+    const extSection = document.getElementById('shareExtSection');
+    if (extSection) {
+      extSection.innerHTML = `
+        <div style="padding:14px;background:#F0F9FF;border-radius:8px;border:1px solid #378ADD">
+          <div style="font-size:13px;color:#1E40AF;font-weight:500;margin-bottom:4px">☁️ 已提交云端部署</div>
+          <div style="font-size:12px;color:#3B82F6">系统会在下次自动巡检时完成部署，通常 1 小时内生效。完成后外链将自动显示在此处。</div>
+        </div>
+      `;
+    }
+
+    // 轮询部署状态（最长 65 分钟，每 30 秒一次）
+    const requestId = data.request_id;
+    let polled = 0;
+    const maxPolls = 130;
+    const pollInterval = setInterval(async () => {
+      polled++;
+      try {
+        const sr = await fetch('/api/share/deploy-status/' + requestId);
+        const sd = await sr.json();
+        if (sd.status === 'done' && sd.url) {
+          clearInterval(pollInterval);
+          btn.textContent = '✅ 已部署';
+          btn.style.background = '#378ADD';
+          if (extSection) {
+            extSection.innerHTML = `
+              <div style="font-size:12px;color:#999;margin-bottom:6px">外部可访问链接</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input id="shareExtUrlInput" value="${sd.url}" readonly style="flex:1;padding:10px 14px;border:1px solid #E8E9F0;border-radius:8px;font-size:13px;color:#333;background:#fafbfc">
+                <button onclick="copyExtShareUrl()" style="padding:10px 18px;background:#1D9E75;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap">复制外链</button>
+              </div>
+            `;
+          }
+          setTimeout(() => { btn.textContent = '☁️ 重新部署'; btn.disabled = false; btn.style.opacity = '1'; btn.style.background = '#1D9E75'; }, 1500);
+        } else if (sd.status === 'error') {
+          clearInterval(pollInterval);
+          btn.textContent = '❌ 部署失败';
+          btn.style.background = '#E8505B';
+          setTimeout(() => { btn.textContent = orig; btn.disabled = false; btn.style.opacity = '1'; btn.style.background = '#1D9E75'; }, 2000);
+        } else if (polled >= maxPolls) {
+          clearInterval(pollInterval);
+          btn.textContent = '⏰ 队列处理中';
+          btn.disabled = false;
+          btn.style.opacity = '1';
+        }
+      } catch(e) {
+        // ignore polling errors
+      }
+    }, 30000);
+  } catch(e) {
+    alert('请求失败：' + e.message);
+    btn.textContent = orig;
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
+
+function copyExtShareUrl() {
+  const input = document.getElementById('shareExtUrlInput');
+  if (!input) return;
+  input.select();
+  navigator.clipboard.writeText(input.value).then(function() {
+    var btn = document.querySelector('#shareResultToast button[onclick="copyExtShareUrl()"]');
+    if (btn) {
+      btn.textContent = '已复制!';
+      btn.style.background = '#378ADD';
+      setTimeout(function() { btn.textContent = '复制外链'; btn.style.background = '#1D9E75'; }, 1500);
+    }
+  }).catch(function() {
+    document.execCommand('copy');
+  });
+}
+</script>
+
+<!-- 分享卡片模态面板 -->
+<div id="shareOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 20px">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:1100px;display:flex;flex-direction:column;max-height:90vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee">
+      <div style="font-size:16px;font-weight:500;color:#1a1a2e">分享卡片</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button id="shareDownloadBtn" onclick="downloadShareCard()" style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;cursor:pointer">下载图片</button>
+        <span onclick="closeShareCard()" style="cursor:pointer;font-size:20px;color:#999;padding:0 4px">&times;</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;padding:20px;overflow-y:auto">
+      <div id="shareFilters" style="width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:16px"></div>
+      <div id="shareCardPreview" style="flex:1;min-width:0"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+.share-group { margin-bottom: 0; }
+.share-label { font-size:11px; color:#888; letter-spacing:0.5px; margin-bottom:8px; font-weight:500; }
+.share-chips { display:flex; flex-wrap:nowrap; gap:5px; overflow-x:auto; padding-bottom:2px; }
+.share-chips.share-chips-wrap { flex-wrap:wrap; overflow-x:visible; padding-bottom:0; }
+.share-chips::-webkit-scrollbar { height:3px; }
+.share-chips::-webkit-scrollbar-thumb { background:#ddd; border-radius:2px; }
+.share-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:5px;
+  background:#F5F5F5; color:#555; font-size:11px; cursor:pointer;
+  white-space:nowrap; flex-shrink:0;
+  transition: all 0.15s;
+}
+.share-chip.active { background:#2D3142; color:#fff; }
+</style>
+
+</body>
+</html>

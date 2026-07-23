@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UV Dashboard 2.0 · 体验迭代审视报告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --c-primary:#4F6BED; --c-primary-gradient:linear-gradient(135deg,#6B7CED,#4F6BED);
+    --c-green:#16A34A; --c-orange:#E8943B; --c-red:#E8505B; --c-purple:#8B5CF6;
+    --bg:#F5F6FA; --panel:#fff; --ink:#1A1A2E; --ink2:#2D3142; --ink3:#6C7293; --muted:#A0A3BD;
+    --line:#E8E9F0; --line2:#E5E7EB;
+    --r:12px; --r-sm:8px; --shadow:0 4px 14px rgba(0,0,0,.07);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink2);line-height:1.65;padding:32px 20px 64px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto}
+  /* Header */
+  .hero{background:linear-gradient(135deg,#1f2440,#2b3160);color:#fff;border-radius:20px;padding:34px 36px;box-shadow:0 12px 40px rgba(31,39,64,.25);position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(79,107,237,.5),transparent 70%)}
+  .hero h1{font-size:26px;font-weight:700;letter-spacing:.5px;position:relative}
+  .hero .sub{font-size:14px;opacity:.78;margin-top:8px;position:relative}
+  .hero .verdict{margin-top:20px;display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;position:relative}
+  .hero .verdict .dot{width:9px;height:9px;border-radius:50%;background:#FACC15;box-shadow:0 0 0 4px rgba(250,204,21,.25)}
+  /* Layout */
+  section{margin-top:30px}
+  .sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .sec-head .bar{width:4px;height:20px;border-radius:3px;background:var(--c-primary-gradient)}
+  .sec-head h2{font-size:19px;font-weight:700;color:var(--ink)}
+  .sec-head .en{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+  .card h3{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  /* score chip */
+  .score{display:inline-flex;align-items:baseline;gap:2px;font-weight:800;font-size:15px;padding:2px 9px;border-radius:8px}
+  .s-hi{background:#DCFCE7;color:#16A34A}.s-mid{background:#FEF3C7;color:#CA8A04}.s-lo{background:#FEE2E2;color:#DC2626}
+  /* tag */
+  .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;margin-right:6px}
+  .t-p0{background:#FEE2E2;color:#DC2626}.t-p1{background:#FEF3C7;color:#CA8A04}.t-p2{background:#E0F2FE;color:#0369A1}
+  .t-hi{background:#FEE2E2;color:#DC2626}.t-md{background:#FEF3C7;color:#CA8A04}.t-lo{background:#EEF2FF;color:#4F6BED}
+  .t-ok{background:#DCFCE7;color:#16A34A}
+  /* list */
+  ul.li{list-style:none}
+  ul.li>li{padding:11px 0;border-bottom:1px dashed var(--line);display:flex;gap:12px;align-items:flex-start}
+  ul.li>li:last-child{border-bottom:none}
+  .li .n{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--c-primary-light,#EEF2FF);color:var(--c-primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin-top:1px}
+  .li .ct{flex:1}
+  .li .ct .t{font-weight:600;color:var(--ink);font-size:14px}
+  .li .ct .d{font-size:13px;color:var(--ink3);margin-top:3px}
+  .kw{color:var(--c-primary);font-weight:600}
+  /* radar */
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 8px;box-shadow:var(--shadow)}
+  .chartbox canvas{max-height:340px}
+  /* stat strip */
+  .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:860px){.strip{grid-template-columns:repeat(2,1fr)}}
+  .strip .m{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;text-align:center;box-shadow:var(--shadow)}
+  .strip .m .v{font-size:22px;font-weight:800;color:var(--ink)}
+  .strip .m .l{font-size:12px;color:var(--ink3);margin-top:4px}
+  /* roadmap */
+  .road{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:860px){.road{grid-template-columns:1fr}}
+  .road .ph{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);border-top:4px solid var(--c-primary)}
+  .road .ph.q1{border-top-color:var(--c-red)} .road .ph.q2{border-top-color:var(--c-orange)} .road .ph.q3{border-top-color:var(--c-purple)}
+  .road .ph .ph-h{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:12px}
+  .road .ph ul{list-style:none}
+  .road .ph li{font-size:13px;color:var(--ink2);padding:6px 0 6px 18px;position:relative}
+  .road .ph li::before{content:"";position:absolute;left:2px;top:13px;width:6px;height:6px;border-radius:50%;background:var(--c-primary)}
+  .road .ph.q1 li::before{background:var(--c-red)} .road .ph.q2 li::before{background:var(--c-orange)} .road .ph.q3 li::before{background:var(--c-purple)}
+  .foot{margin-top:36px;text-align:center;color:var(--muted);font-size:12px}
+  .quote{background:linear-gradient(135deg,#EEF2FF,#F8F9FB);border:1px solid var(--line);border-left:4px solid var(--c-primary);border-radius:var(--r);padding:16px 18px;font-size:14px;color:var(--ink2);margin-top:14px}
+  code{background:#F1F5F9;padding:1px 6px;border-radius:5px;font-size:12px;color:#334155;font-family:ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>UV Dashboard 2.0 · 体验迭代审视报告</h1>
+    <div class="sub">高级产品经理视角 · 功能闭环 × 信息架构 × 视觉交互 全面体检</div>
+    <div class="verdict"><span class="dot"></span>总体判断：骨骼精良，皮肉待琢 —— 逻辑与架构扎实，二次功能闭环、数据可视化深度、移动端与错误/空态体验是下一阶段重点</div>
+  </div>
+
+  <!-- 成熟度概览 -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>一、当前成熟度快照</h2><span class="en">Maturity Snapshot</span></div>
+    <div class="grid2">
+      <div class="chartbox"><canvas id="radar"></canvas></div>
+      <div class="card">
+        <h3>📊 量化体检（满分 10）</h3>
+        <ul class="li">
+          <li><span class="n">9</span><div class="ct"><div class="t">数据逻辑严谨度 <span class="score s-hi">8.5</span></div><div class="d">UV/PV 双维度、续报率/转化率分轨、pre/new 按支付时间判定，分类科学且可追溯。</div></div></li>
+          <li><span class="n">8</span><div class="ct"><div class="t">设计系统完整度 <span class="score s-mid">7.5</span></div><div class="d">CSS 变量 + 分段控件 + pill + 卡片阴影统一；但存在"分享按钮绿色 vs 品牌蓝紫"等局部不一致。</div></div></li>
+          <li><span class="n">6</span><div class="ct"><div class="t">错误 / 空态处理 <span class="score s-lo">4.5</span></div><div class="d">fetch 失败多止于 <code>console.error</code>，无全局 toast / 错误边界；空态仅一行灰字。</div></div></li>
+          <li><span class="n">4</span><div class="ct"><div class="t">移动端适配 <span class="score s-lo">4</span></div><div class="d"><code>max-width:1360</code> 居中、8 项筛选栏窄屏换行堆叠、无抽屉/汉堡、无键盘可达性。</div></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 亮点 -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>二、已经做对的地方（保持）</h2><span class="en">Strengths</span></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>🏗 架构与逻辑</h3>
+        <ul class="li">
+          <li><span class="n">✓</span><div class="ct"><div class="t">分层清晰</div><div class="d">薄 API 路由层 + engine 计算层 + repository 数据层，路由仅做参数提取与序列化，可维护性高。</div></div></li>
+          <li><span class="n">✓</span><div class="ct"><div class="t">双维度度量严谨</div><div class="d">主讲/顾问排行均支持 UV（学员）与 PV（科目）双口径，续报率与转化率分轨，避免单一指标误导。</div></div></li>
+          <li><span class="n">✓</span><div class="ct"><div class="t">防遮挡标签插件</div><div class="d"><code>uv-chart-labels.js</code> 将碰撞避让逻辑抽离并主题化，通用且专业，是良好抽象。</div></div></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🎨 体验与交互</h3>
+        <ul class="li">
+          <li><span class="n">✓</span><div class="ct"><div class="t">校准闭环完整</div><div class="d">上传（招生明细/原台帐/秋季续费）→ 变动卡片 → 异常提示 → 台帐/报告 Excel 下载，流程自洽。</div></div></li>
+          <li><span class="n">✓</span><div class="ct"><div class="t">详情下钻层级清晰</div><div class="d">学员 / 班级 / 主讲 / 顾问 弹窗互链，三科状态卡信息密度高且状态语义明确。</div></div></li>
+          <li><span class="n">✓</span><div class="ct"><div class="t">分享能力到位</div><div class="d">生成本地分享页（复刻 1.0）+ 分享卡片图片导出（html2canvas 透明背景处理正确）。</div></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 功能缺口 -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>三、功能闭环缺口</h2><span class="en">Functionality Gaps</span></div>
+    <div class="card">
+      <h3>🔧 按优先级排列 <span class="tag t-p0">P0 高</span><span class="tag t-p1">P1 中</span><span class="tag t-p2">P2 低</span></h3>
+      <ul class="li">
+        <li><span class="n">P0</span><div class="ct"><div class="t">数据导出全面缺失</div><div class="d">后端 <code>/api/overview/export</code> 与 <code>/api/share/deploy</code> 均为 <span class="kw">TODO 占位</span>；学员检索、期次矩阵、排班看板均无导出 Excel。对"数据工具"而言是硬伤，用户无法把看板结论带走。</div></div></li>
+        <li><span class="n">P0</span><div class="ct"><div class="t">校准无回滚 / 切换当前 run</div><div class="d">运行监控仅能"查看历史 run 详情"，无法将某次 run 设为<span class="kw">当前数据基线</span>。一次错误校准即污染全看板，且无法从界面恢复，风险高。</div></div></li>
+        <li><span class="n">P1</span><div class="ct"><div class="t">跨 run 对比缺失</div><div class="d">校准的核心价值是"这次相对上次变了什么"，但运行监控只列 run 列表，无 run-vs-run 增量可视化（新增 / 退费 / 续报率漂移），错失最有说服力的洞察。</div></div></li>
+        <li><span class="n">P1</span><div class="ct"><div class="t">云端分享未接通</div><div class="d">"生成分享"仅产出本地 HTML 可打开，<code>/api/share/deploy</code> 未实现，无法生成可外发链接，分享半径受限。</div></div></li>
+        <li><span class="n">P2</span><div class="ct"><div class="t">自动 / 定时校准</div><div class="d">当前必须手动上传触发；若招生产线每日出单，缺定时任务或自动拉取，运营成本高。</div></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- UI/UX -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>四、UI / UX 待打磨项</h2><span class="en">Interface & Interaction</span></div>
+    <div class="grid2">
+      <div class="card">
+        <h3><span class="tag t-hi">High</span> 高优先</h3>
+        <ul class="li">
+          <li><span class="n">!</span><div class="ct"><div class="t">明暗风格割裂</div><div class="d">主应用为浅色品牌风，但分享页是 1.0 暗色主题，打开链接看到"另一个产品"，认知断档。建议分享页提供浅色品牌主题，或主应用支持暗色模式。</div></div></li>
+          <li><span class="n">!</span><div class="ct"><div class="t">错误态缺位</div><div class="d">接口失败多为静默 <code>console.error</code>，界面无 toast / 错误边界；用户可能面对空白卡片或旧数据而无感知。</div></div></li>
+          <li><span class="n">!</span><div class="ct"><div class="t">数据时效弱提示</div><div class="d">最新校准时间藏在 header 角落小字，无"数据 N 小时前更新"或"重新校准"入口，用户难判断看板是否新鲜。</div></div></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="tag t-md">Medium</span> 中优先</h3>
+        <ul class="li">
+          <li><span class="n">~</span><div class="ct"><div class="t">主看板图表单薄</div><div class="d">一屏总览仅 2 张图（堆叠趋势 + 拉新月度），缺续报率仪表、学科/教学点构成环图、转化漏斗等"一眼洞察"组件，总览感不足。</div></div></li>
+          <li><span class="n">~</span><div class="ct"><div class="t">筛选范式混合</div><div class="d">详情 Tab 用 chips 即时刷新，看板用多选下拉 + "查询"按钮，两种范式并存易增加认知负担；窄屏下 8 项筛选栏换行堆叠无折叠。</div></div></li>
+          <li><span class="n">~</span><div class="ct"><div class="t">配色局部不一致</div><div class="d">主品牌蓝紫，但"生成分享/分享卡片"按钮用绿 <code>#1D9E75</code>；图例颜色硬编码在 HTML，与 config 色板不同步，改主题易漏。</div></div></li>
+          <li><span class="n">~</span><div class="ct"><div class="t">空态简陋</div><div class="d"><code>.no-data</code> 仅一行灰字；无筛选结果 / 无学员时应给引导插画或操作建议。</div></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 信息架构 & 可视化 -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>五、信息架构与数据可视化</h2><span class="en">IA & Data Viz</span></div>
+    <div class="card">
+      <ul class="li">
+        <li><span class="n">A</span><div class="ct"><div class="t">Tab 语义可优化</div><div class="d">4 主Tab + 5 子Tab 信息量大；"数据明细"把查看型（矩阵/排班）与下钻型（主讲/顾问/学员）混排，建议分组或加图标语义区分"看板"与"检索"。</div></div></li>
+        <li><span class="n">B</span><div class="ct"><div class="t">图表类型单一</div><div class="d">目前仅"堆叠柱 + 折线"。建议补充：续报率仪表盘、学科/教学点构成环图、转化漏斗、期次 × 指标热力图，丰富叙事层次。</div></div></li>
+        <li><span class="n">C</span><div class="ct"><div class="t">口径标注需显式</div><div class="d">主趋势图用 PV、KPI 用 UV/PV 混用，应在界面明确标注每一处口径，避免业务方质疑"数字对不上"。</div></div></li>
+        <li><span class="n">D</span><div class="ct"><div class="t">分享页与看板口径对齐</div><div class="d">分享页月度图忽略期次筛选（<code>periods=''</code>），与看板筛选不完全联动，需明示或对齐。</div></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 视觉打磨 -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>六、视觉与交互打磨清单</h2><span class="en">Polish</span></div>
+    <div class="strip">
+      <div class="m"><div class="v">微动效</div><div class="l">卡片入场淡入 / 排行数字滚动 / KPI 刷新脉冲</div></div>
+      <div class="m"><div class="v">数字排版</div><div class="l">KPI 启用 tabular-nums + 千分位，防跳动</div></div>
+      <div class="m"><div class="v">生成反馈</div><div class="l">分享卡片加"生成中"骨架 + 成功 toast</div></div>
+      <div class="m"><div class="v">令牌统一</div><div class="l">分享卡 radius16 vs 主应用 8–12 需统一</div></div>
+    </div>
+    <div class="quote">低级但高频的体验债：键盘可达性（多选下拉 / chips 均为鼠标驱动，缺 aria 与 focus 流）、URL 深链与快捷键（Tab 状态不进地址栏，刷新即丢失）、分享文件随生成累积无清理（<code>static/shares/</code> 已 50+ 文件）。</div>
+  </section>
+
+  <!-- 路线图 -->
+  <section>
+    <div class="sec-head"><span class="bar"></span><h2>七、建议迭代路线图</h2><span class="en">Roadmap</span></div>
+    <div class="road">
+      <div class="ph q1">
+        <div class="ph-h">近期 · 1–2 周（补闭环）</div>
+        <ul>
+          <li>学员 / 矩阵 / 排班 导出 Excel</li>
+          <li>全局错误 toast + 错误边界</li>
+          <li>运行监控"切换为当前 run"回滚</li>
+          <li>分享页浅色品牌主题开关</li>
+          <li>数据时效提示 + 重新校准入口</li>
+        </ul>
+      </div>
+      <div class="ph q2">
+        <div class="ph-h">中期 · 2–4 周（深洞察）</div>
+        <ul>
+          <li>跨 run 对比可视化（增量漂移）</li>
+          <li>主看板补充 3–4 个洞察图</li>
+          <li>筛选栏响应式折叠 / 统一刷新范式</li>
+          <li>图例改为 config 驱动，去掉硬编码</li>
+          <li>口径显式标注（UV/PV）</li>
+        </ul>
+      </div>
+      <div class="ph q3">
+        <div class="ph-h">长期 · 体系化</div>
+        <ul>
+          <li>移动端适配（抽屉筛选 / 底部 Tab）</li>
+          <li>自动 / 定时校准任务</li>
+          <li>云端分享部署（外链）</li>
+          <li>暗色模式 + a11y 键盘可达性</li>
+          <li>分享文件生命周期清理</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">UV Dashboard 2.0 体验审视 · 基于代码与界面实地走查 · 仅供产品迭代决策参考</div>
+</div>
+
+<script>
+  const ctx = document.getElementById('radar').getContext('2d');
+  new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['功能完整度','数据逻辑','信息架构','视觉精致','数据可视化','交互体验','错误/空态','移动端','性能/维护'],
+      datasets: [{
+        label: '当前成熟度',
+        data: [7, 8.5, 7.5, 7, 6, 6.5, 4.5, 4, 7],
+        fill: true,
+        backgroundColor: 'rgba(79,107,237,.15)',
+        borderColor: '#4F6BED',
+        borderWidth: 2,
+        pointBackgroundColor: '#4F6BED',
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c)=>` ${c.formattedValue} / 10` } }
+      },
+      scales: {
+        r: {
+          min: 0, max: 10,
+          angleLines: { color: 'rgba(0,0,0,.06)' },
+          grid: { color: 'rgba(0,0,0,.06)' },
+          pointLabels: { font: { size: 11 }, color: '#2D3142' },
+          ticks: { display: false, stepSize: 2 }
+        }
+      }
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+build/
+dist/
+*.egg-info/
+.env
+.DS_Store
+node_modules/
+*.db.bak*
+installer_output/
+*.db
+*.db.bak*
+uv-dashboard/
+node_modules/
